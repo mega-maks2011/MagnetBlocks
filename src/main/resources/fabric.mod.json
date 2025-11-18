@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "magnetblocks",
+  "version": "${version}",
+  "name": "Magnet Blocks",
+  "description": "Adds magnets like on the MSH4",
+  "authors": ["M998 (AKA qweewq2011qwe AKA MegaMaks2011)"],
+  "issues": "",
+  "environment": "*",
+  "icon": "assets/magnetblocks/icon.png",
+  "entrypoints": {
+    "main": [
+      "net.m998.magnetblocks.MagnetBlocksMod"
+    ]
+  },
+  "depends": {
+    "fabric-api": "*",
+    "fabricloader": ">=0.18.0",
+    "java": ">=17",
+    "minecraft": "1.20.1"
+  }
+}
