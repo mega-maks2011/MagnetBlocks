@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "attracting=true,powered=false": { "model": "magnetblocks:block/magnet" },
+    "attracting=false,powered=false": { "model": "magnetblocks:block/magnet" },
+    "attracting=true,powered=true": { "model": "magnetblocks:block/magnet" },
+    "attracting=false,powered=true": { "model": "magnetblocks:block/magnet" }
+  }
+}
