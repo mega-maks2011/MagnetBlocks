@@ -8,7 +8,7 @@
 
 ### **MagnetBlocks - Magnetic Power at Your Fingertips**
 
-This mod faithfully recreates the iconic **Magnet Block** from the famous **"Mainshield 4"** Minecraft server, bringing its unique and complex magnetism mechanics into your game. Control the battlefield, build intricate transportation systems, or simply have fun with the power of attraction and repulsion!
+This mod faithfully recreates the iconic **Magnet Block** from the famous **"Miinshield 4"** Minecraft server, bringing its unique and complex magnetism mechanics into your game. Control the battlefield, build intricate transportation systems, or simply have fun with the power of attraction and repulsion!
 
 ---
 
