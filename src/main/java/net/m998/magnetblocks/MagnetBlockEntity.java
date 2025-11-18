@@ -243,18 +243,6 @@ public class MagnetBlockEntity extends BlockEntity {
         ITEM_STRENGTH_MAP.put(Items.DIAMOND_BOOTS, 0.7);
         ITEM_STRENGTH_MAP.put(Items.ENDER_PEARL, 1.0);
         ITEM_STRENGTH_MAP.put(Items.ENDER_EYE, 1.2);
-        ITEM_STRENGTH_MAP.put(Items.DIAMOND, 0.05);
-        ITEM_STRENGTH_MAP.put(Items.DIAMOND_BLOCK, 0.13);
-        ITEM_STRENGTH_MAP.put(Items.EMERALD, 0.04);
-        ITEM_STRENGTH_MAP.put(Items.EMERALD_BLOCK, 0.12);
-        ITEM_STRENGTH_MAP.put(Items.LAPIS_LAZULI, 0.03);
-        ITEM_STRENGTH_MAP.put(Items.LAPIS_BLOCK, 0.1);
-        ITEM_STRENGTH_MAP.put(Items.AMETHYST_SHARD, 0.03);
-        ITEM_STRENGTH_MAP.put(Items.AMETHYST_BLOCK, 0.08);
-        ITEM_STRENGTH_MAP.put(Items.COPPER_INGOT, 0.014);
-        ITEM_STRENGTH_MAP.put(Items.COPPER_BLOCK, 0.043);
-        ITEM_STRENGTH_MAP.put(Items.RAW_COPPER, 0.014);
-        ITEM_STRENGTH_MAP.put(Items.RAW_COPPER_BLOCK, 0.043);
         ITEM_STRENGTH_MAP.put(Items.IRON_BLOCK, 3.0);
         ITEM_STRENGTH_MAP.put(Items.RAW_IRON_BLOCK, 2.5);
         ITEM_STRENGTH_MAP.put(Items.IRON_DOOR, 2.0);
@@ -275,7 +263,7 @@ public class MagnetBlockEntity extends BlockEntity {
         ITEM_STRENGTH_MAP.put(Items.IRON_SHOVEL, 1.5);
         ITEM_STRENGTH_MAP.put(Items.IRON_HOE, 1.5);
         ITEM_STRENGTH_MAP.put(Items.SHEARS, 1.0);
-        ITEM_STRENGTH_MAP.put(Items.FLINT_AND_STEEL, 0.8);
+        ITEM_STRENGTH_MAP.put(Items.FLINT_AND_STEEL, 0.3);
         ITEM_STRENGTH_MAP.put(Items.IRON_HELMET, 1.5);
         ITEM_STRENGTH_MAP.put(Items.IRON_CHESTPLATE, 2.5);
         ITEM_STRENGTH_MAP.put(Items.IRON_LEGGINGS, 2.0);
@@ -287,7 +275,6 @@ public class MagnetBlockEntity extends BlockEntity {
         ITEM_STRENGTH_MAP.put(Items.IRON_ORE, 0.8);
         ITEM_STRENGTH_MAP.put(Items.DEEPSLATE_IRON_ORE, 0.8);
         ITEM_STRENGTH_MAP.put(Items.COMPASS, 0.7);
-        ITEM_STRENGTH_MAP.put(Items.CLOCK, 1.2);
         ITEM_STRENGTH_MAP.put(Items.PISTON, 1.5);
         ITEM_STRENGTH_MAP.put(Items.STICKY_PISTON, 1.5);
         ITEM_STRENGTH_MAP.put(Items.TRIPWIRE_HOOK, 0.5);
@@ -298,8 +285,6 @@ public class MagnetBlockEntity extends BlockEntity {
         ITEM_STRENGTH_MAP.put(Items.SMITHING_TABLE, 2.0);
         ITEM_STRENGTH_MAP.put(Items.IRON_GOLEM_SPAWN_EGG, 1.0);
         ITEM_STRENGTH_MAP.put(Items.HEAVY_WEIGHTED_PRESSURE_PLATE, 1.8);
-        ITEM_STRENGTH_MAP.put(Items.DISPENSER, 1.8);
-        ITEM_STRENGTH_MAP.put(Items.DROPPER, 1.8);
         ITEM_STRENGTH_MAP.put(Items.LAVA_BUCKET, 1.3);
         ITEM_STRENGTH_MAP.put(Items.WATER_BUCKET, 1.1);
         ITEM_STRENGTH_MAP.put(Items.MILK_BUCKET, 1.1);
@@ -314,13 +299,6 @@ public class MagnetBlockEntity extends BlockEntity {
         ITEM_STRENGTH_MAP.put(Items.SOUL_LANTERN, 0.9);
         ITEM_STRENGTH_MAP.put(Items.SHIELD, 1.8);
         ITEM_STRENGTH_MAP.put(Items.SADDLE, 0.8);
-        ITEM_STRENGTH_MAP.put(Items.GOLD_INGOT, 0.4);
-        ITEM_STRENGTH_MAP.put(Items.GOLD_BLOCK, 1.2);
-        ITEM_STRENGTH_MAP.put(Items.GOLD_NUGGET, 0.15);
-        ITEM_STRENGTH_MAP.put(Items.GOLD_ORE, 0.4);
-        ITEM_STRENGTH_MAP.put(Items.DEEPSLATE_GOLD_ORE, 0.4);
-        ITEM_STRENGTH_MAP.put(Items.RAW_GOLD, 0.4);
-        ITEM_STRENGTH_MAP.put(Items.RAW_GOLD_BLOCK, 1.2);
         ITEM_STRENGTH_MAP.put(Items.REDSTONE, 0.1);
         ITEM_STRENGTH_MAP.put(Items.REDSTONE_BLOCK, 0.3);
         ITEM_STRENGTH_MAP.put(Items.REPEATER, 0.5);
