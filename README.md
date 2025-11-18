@@ -40,6 +40,7 @@ This mod faithfully recreates the iconic **Magnet Block** from the famous **"Mai
 This mod is designed to work with magnetic materials from the vanilla game and other popular mods (compatibility list may vary). The core compatible materials are **Iron** and **Netherite**.
 
 ---
+It's not written in neural 110%
 
 ## Русский
 
@@ -77,3 +78,4 @@ This mod is designed to work with magnetic materials from the vanilla game and o
 Мод работает с магнитными материалами из ванильной игры и других популярных модов (список совместимости может меняться). Основные совместимые материалы - это **Железо** и **Незерит**.
 
 ---
+написано не нейронкой 110%
