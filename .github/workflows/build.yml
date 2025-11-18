@@ -15,7 +15,10 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
 
       - name: Build
         run: ./gradlew build
