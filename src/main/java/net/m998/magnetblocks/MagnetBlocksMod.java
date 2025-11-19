@@ -13,6 +13,10 @@ public class MagnetBlocksMod implements ModInitializer {
         ModBlockEntities.register();
         ModItems.register();
         ServerTickEvents.END_WORLD_TICK.register(MagnetBlock::tickPropagation);
+        ServerTickEvents.START_SERVER_TICK.register(server -> {
+            MagneticStormManager stormManager = MagneticStormManager.get(server);
+            stormManager.tick(server);
+        });
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> MagnetCommands.register(dispatcher));
     }
 }
