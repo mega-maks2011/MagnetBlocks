@@ -36,9 +36,7 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
 
     protected MagnetBlock(Settings settings) {
         super(settings);
-        this.setDefaultState(this.getStateManager().getDefaultState()
-                .with(POWERED, false)
-                .with(ATTRACTING, true));
+        this.setDefaultState(this.getStateManager().getDefaultState().with(POWERED, false).with(ATTRACTING, true));
     }
 
     @Override
@@ -60,9 +58,7 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
                 world.spawnEntity(itemEntity);
             }
             BlockEntity blockEntity = world.getBlockEntity(pos);
-            if (blockEntity instanceof MagnetBlockEntity) {
-                world.removeBlockEntity(pos);
-            }
+            if (blockEntity instanceof MagnetBlockEntity) world.removeBlockEntity(pos);
         }
         super.onStateReplaced(state, world, pos, newState, moved);
     }
@@ -74,32 +70,24 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
 
         try {
             updatingBlocks.get().add(pos);
-            boolean isRedstoneUpdate = sourceBlock.getDefaultState().emitsRedstonePower() ||
-                    world.getBlockState(sourcePos).getBlock().getDefaultState().emitsRedstonePower();
-
+            boolean isRedstoneUpdate = sourceBlock.getDefaultState().emitsRedstonePower() || world.getBlockState(sourcePos).getBlock().getDefaultState().emitsRedstonePower();
             if (!isRedstoneUpdate) {
                 boolean hasLocalPower = world.isReceivingRedstonePower(pos);
-                if (hasLocalPower && !state.get(POWERED)) {
-                    world.setBlockState(pos, state.with(POWERED, true), 2);
-                }
+                if (hasLocalPower && !state.get(POWERED)) world.setBlockState(pos, state.with(POWERED, true), 2);
                 return;
             }
 
             boolean powered = world.isReceivingRedstonePower(pos);
             boolean currentPowered = state.get(POWERED);
-
             if (powered != currentPowered) {
                 world.setBlockState(pos, state.with(POWERED, powered), 2);
                 Set<BlockPos> visited = new HashSet<>();
                 visited.add(pos);
-
                 for (Direction direction : DIRECTIONS) {
                     BlockPos neighborPos = pos.offset(direction);
                     if (!visited.contains(neighborPos)) {
                         BlockState neighborState = world.getBlockState(neighborPos);
-                        if (neighborState.getBlock() instanceof MagnetBlock) {
-                            addToPropagationQueue(world, new PowerChangeTask(neighborPos, powered, 0));
-                        }
+                        if (neighborState.getBlock() instanceof MagnetBlock) addToPropagationQueue(world, new PowerChangeTask(neighborPos, powered, 0));
                     }
                 }
             }
@@ -110,7 +98,6 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
 
     public static void tickPropagation(World world) {
         if (world.isClient) return;
-
         Queue<PropagationTask> queue = propagationQueues.get(world);
         if (queue != null && !queue.isEmpty()) {
             for (int i = 0; i < 32 && !queue.isEmpty(); i++) {
@@ -123,22 +110,16 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
                             BlockState neighborState = world.getBlockState(neighborPos);
                             if (neighborState.getBlock() instanceof MagnetBlock) {
                                 if (task instanceof PowerChangeTask powerTask) {
-                                    if (shouldPropagatePower(world, neighborPos, neighborState, powerTask.powered)) {
-                                        addToPropagationQueue(world, new PowerChangeTask(neighborPos, powerTask.powered, task.distance + 1));
-                                    }
+                                    if (shouldPropagatePower(world, neighborPos, neighborState, powerTask.powered)) addToPropagationQueue(world, new PowerChangeTask(neighborPos, powerTask.powered, task.distance + 1));
                                 } else if (task instanceof PolarityChangeTask polarityTask) {
-                                    if (shouldPropagatePolarity(neighborState, polarityTask.attracting)) {
-                                        addToPropagationQueue(world, new PolarityChangeTask(neighborPos, polarityTask.attracting, task.distance + 1));
-                                    }
+                                    if (shouldPropagatePolarity(neighborState, polarityTask.attracting)) addToPropagationQueue(world, new PolarityChangeTask(neighborPos, polarityTask.attracting, task.distance + 1));
                                 }
                             }
                         }
                     }
                 }
             }
-            if (queue.isEmpty()) {
-                propagationQueues.remove(world);
-            }
+            if (queue.isEmpty()) propagationQueues.remove(world);
         }
     }
 
@@ -162,15 +143,9 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
                 world.setBlockState(pos, state.with(ATTRACTING, newPolarity), 2);
                 world.addBlockBreakParticles(pos, state);
                 addToPropagationQueue(world, new PolarityChangeTask(pos, newPolarity, 0));
-
-                if (!player.getAbilities().creativeMode) {
-                    itemStack.damage(10, player, (playerEntity) -> playerEntity.sendToolBreakStatus(hand));
-                }
-
+                if (!player.getAbilities().creativeMode) itemStack.damage(10, player, (playerEntity) -> playerEntity.sendToolBreakStatus(hand));
                 world.playSound(null, pos, SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, 1.0F, 1.0F);
-                if (world instanceof ServerWorld serverWorld) {
-                    serverWorld.spawnParticles(ParticleTypes.ELECTRIC_SPARK, pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5, 10, 0.3, 0.3, 0.3, 0.1);
-                }
+                if (world instanceof ServerWorld serverWorld) serverWorld.spawnParticles(ParticleTypes.ELECTRIC_SPARK, pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5, 10, 0.3, 0.3, 0.3, 0.1);
             }
             return ActionResult.SUCCESS;
         }
@@ -180,9 +155,7 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
     private static void addToPropagationQueue(World world, PropagationTask task) {
         Queue<PropagationTask> queue = propagationQueues.computeIfAbsent(world, k -> new LinkedList<>());
         boolean alreadyExists = queue.stream().anyMatch(t -> t.pos.equals(task.pos) && t.getClass() == task.getClass());
-        if (!alreadyExists) {
-            queue.add(task);
-        }
+        if (!alreadyExists) queue.add(task);
     }
 
     @Nullable
@@ -224,14 +197,10 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
             if (state.getBlock() instanceof MagnetBlock) {
                 boolean hasLocalPower = world.isReceivingRedstonePower(pos);
                 if (hasLocalPower) {
-                    if (!state.get(POWERED)) {
-                        world.setBlockState(pos, state.with(POWERED, true), 2);
-                    }
+                    if (!state.get(POWERED)) world.setBlockState(pos, state.with(POWERED, true), 2);
                     return;
                 }
-                if (state.get(POWERED) != powered) {
-                    world.setBlockState(pos, state.with(POWERED, powered), 2);
-                }
+                if (state.get(POWERED) != powered) world.setBlockState(pos, state.with(POWERED, powered), 2);
             }
         }
     }
