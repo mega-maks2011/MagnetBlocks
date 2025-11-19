@@ -51,16 +51,24 @@ public class MagnetCommands {
                                 .then(argument("id", IntegerArgumentType.integer())
                                         .executes(context -> adminMagnetInfo(context, IntegerArgumentType.getInteger(context, "id")))))
                         .then(literal("debug")
-                                .executes(MagnetCommands::adminDebugInfo))));
+                                .executes(MagnetCommands::adminDebugInfo))
+                        .then(literal("storm")
+                                .executes(MagnetCommands::adminStormInfo)
+                                .then(literal("start")
+                                        .then(argument("duration", IntegerArgumentType.integer(1, 120))
+                                                .then(argument("intensity", DoubleArgumentType.doubleArg(0.1, 5.0))
+                                                        .executes(context -> adminStormStart(context, IntegerArgumentType.getInteger(context, "duration"), DoubleArgumentType.getDouble(context, "intensity"))))))
+                                .then(literal("stop")
+                                        .executes(MagnetCommands::adminStormStop))
+                                .then(literal("force")
+                                        .executes(MagnetCommands::adminStormForceRandom)))));
     }
 
     private static int createPhantomMagnet(CommandContext<ServerCommandSource> context, BlockPos pos, double radius, double forceMultiplier, boolean attracting) {
         PhantomMagnetManager manager = PhantomMagnetManager.get(context.getSource().getServer());
         int id = manager.createMagnet(pos, radius, forceMultiplier, attracting);
         double actualForce = Math.min(forceMultiplier, PhantomMagnetManager.getMaxForceMultiplier());
-        if (forceMultiplier > actualForce) {
-            context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.create.force_limited", forceMultiplier, actualForce), false);
-        }
+        if (forceMultiplier > actualForce) context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.create.force_limited", forceMultiplier, actualForce), false);
         context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.create.success", id, pos.toShortString(), radius, actualForce,
                 attracting ? Text.translatable("command.magnetblocks.polarity.attracting") : Text.translatable("command.magnetblocks.polarity.repelling")), true);
         return id;
@@ -99,9 +107,7 @@ public class MagnetCommands {
             double actualForce = Math.min(newForce, PhantomMagnetManager.getMaxForceMultiplier());
             magnet.setForceMultiplier(actualForce);
             manager.markDirty();
-            if (newForce > actualForce) {
-                context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.modify.force_limited", newForce, actualForce), false);
-            }
+            if (newForce > actualForce) context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.modify.force_limited", newForce, actualForce), false);
             context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.modify.force.success", id, actualForce), true);
             return 1;
         } else {
@@ -186,6 +192,57 @@ public class MagnetCommands {
                 manager.getMagnets().isEmpty() ? 1 : manager.getMagnets().keySet().stream().max(Integer::compareTo).orElse(0) + 1), false);
         context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.debug.clear_pending", manager.isClearConfirmationPending()), false);
         context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.debug.max_force", PhantomMagnetManager.getMaxForceMultiplier()), false);
+        return 1;
+    }
+
+    private static int adminStormInfo(CommandContext<ServerCommandSource> context) {
+        MagneticStormManager stormManager = MagneticStormManager.get(context.getSource().getServer());
+        context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.storm.header"), false);
+        context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.storm.active", stormManager.isStormActive()), false);
+        if (stormManager.isStormActive()) {
+            context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.storm.effect",
+                    stormManager.getCurrentEffect() != null ? stormManager.getCurrentEffect().name() : "unknown"), false);
+            context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.storm.time_remaining",
+                    stormManager.getStormTimeRemaining() / 60000), false);
+            context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.storm.intensity",
+                    stormManager.getStormIntensity()), false);
+        } else {
+            context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.storm.time_until",
+                    stormManager.getTimeUntilNextStorm() / 60000), false);
+        }
+        return 1;
+    }
+
+    private static int adminStormStart(CommandContext<ServerCommandSource> context, int duration, double intensity) {
+        MagneticStormManager stormManager = MagneticStormManager.get(context.getSource().getServer());
+        if (stormManager.isStormActive()) {
+            context.getSource().sendError(Text.translatable("command.magnetblocks.admin.storm.start.error.active"));
+            return 0;
+        }
+        stormManager.startCustomStorm(context.getSource().getServer(), duration, intensity);
+        context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.storm.start.success", duration, intensity), true);
+        return 1;
+    }
+
+    private static int adminStormStop(CommandContext<ServerCommandSource> context) {
+        MagneticStormManager stormManager = MagneticStormManager.get(context.getSource().getServer());
+        if (!stormManager.isStormActive()) {
+            context.getSource().sendError(Text.translatable("command.magnetblocks.admin.storm.stop.error.inactive"));
+            return 0;
+        }
+        stormManager.endStorm(context.getSource().getServer());
+        context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.storm.stop.success"), true);
+        return 1;
+    }
+
+    private static int adminStormForceRandom(CommandContext<ServerCommandSource> context) {
+        MagneticStormManager stormManager = MagneticStormManager.get(context.getSource().getServer());
+        if (stormManager.isStormActive()) {
+            context.getSource().sendError(Text.translatable("command.magnetblocks.admin.storm.force.error.active"));
+            return 0;
+        }
+        stormManager.startStorm(context.getSource().getServer());
+        context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.storm.force.success"), true);
         return 1;
     }
 }
