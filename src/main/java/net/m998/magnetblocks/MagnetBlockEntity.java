@@ -26,10 +26,6 @@ import java.util.Map;
 public class MagnetBlockEntity extends BlockEntity {
     private static final double RANGE = 40.0;
     private static final double FORCE = 0.001;
-    private static final boolean AFFECT_HOSTILE_MOBS = false;
-    private static final boolean AFFECT_PASSIVE_ANIMALS = false;
-    private static final boolean AFFECT_VILLAGERS = false;
-    private static final boolean AFFECT_OTHER_ENTITIES = false;
     private static final Map<Item, Double> ITEM_STRENGTH_MAP = new HashMap<>();
 
     static {
@@ -42,9 +38,7 @@ public class MagnetBlockEntity extends BlockEntity {
 
     public static void tick(World world, BlockPos pos, BlockState state) {
         if (world.isClient) return;
-        if (!state.get(MagnetBlock.POWERED)) {
-            processMagnetBlock(world, pos, state);
-        }
+        if (!state.get(MagnetBlock.POWERED)) processMagnetBlock(world, pos, state);
         processPhantomMagnets(world);
     }
 
@@ -113,9 +107,7 @@ public class MagnetBlockEntity extends BlockEntity {
                     blockField.setAccessible(true);
                     Object blockData = blockField.get(entity);
                     String blockString = blockData.toString().toLowerCase();
-                    if (blockString.contains("anvil") || blockString.contains("iron") || blockString.contains("netherite") || blockString.contains("chain") || blockString.contains("cauldron") || blockString.contains("hopper")) {
-                        return 4.0;
-                    }
+                    if (blockString.contains("anvil") || blockString.contains("iron") || blockString.contains("netherite") || blockString.contains("chain") || blockString.contains("cauldron") || blockString.contains("hopper")) return 4.0;
                 }
             } catch (Exception e) {
                 String entityString = entity.toString().toLowerCase();
@@ -129,12 +121,37 @@ public class MagnetBlockEntity extends BlockEntity {
             return getPlayerStrength(player);
         }
         if (entity instanceof LivingEntity living) {
-            if (living instanceof Monster) return AFFECT_HOSTILE_MOBS ? 1.0 : 0.0;
-            if (living instanceof AnimalEntity) return AFFECT_PASSIVE_ANIMALS ? 1.0 : 0.0;
-            if (living instanceof VillagerEntity) return AFFECT_VILLAGERS ? 1.0 : 0.0;
-            return AFFECT_OTHER_ENTITIES ? 1.0 : 0.0;
+            double equipmentStrength = getMobEquipmentStrength(living);
+            double baseStrength = getMobBaseStrength(living);
+            return Math.max(equipmentStrength, baseStrength);
         }
         return 0.0;
+    }
+
+    private static double getMobEquipmentStrength(LivingEntity mob) {
+        double totalStrength = 0.0;
+        int magneticItems = 0;
+        for (ItemStack stack : mob.getArmorItems()) {
+            double strength = getItemStrength(stack);
+            if (strength > 0) {
+                totalStrength += strength;
+                magneticItems++;
+            }
+        }
+        ItemStack mainHand = mob.getMainHandStack();
+        double mainHandStrength = getItemStrength(mainHand);
+        if (mainHandStrength > 0) {
+            totalStrength += mainHandStrength;
+            magneticItems++;
+        }
+        return magneticItems > 0 ? totalStrength / magneticItems : 0.0;
+    }
+
+    private static double getMobBaseStrength(LivingEntity mob) {
+        if (mob instanceof Monster) return MagnetStorms.AFFECT_HOSTILE_MOBS ? 0.5 : 0.0;
+        if (mob instanceof AnimalEntity) return MagnetStorms.AFFECT_PASSIVE_ANIMALS ? 0.3 : 0.0;
+        if (mob instanceof VillagerEntity) return MagnetStorms.AFFECT_VILLAGERS ? 0.4 : 0.0;
+        return MagnetStorms.AFFECT_OTHER_ENTITIES ? 0.2 : 0.0;
     }
 
     private static double getPlayerStrength(PlayerEntity player) {
