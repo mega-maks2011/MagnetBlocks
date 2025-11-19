@@ -13,11 +13,12 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
 import net.minecraft.item.*;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,20 +42,32 @@ public class MagnetBlockEntity extends BlockEntity {
 
     public static void tick(World world, BlockPos pos, BlockState state) {
         if (world.isClient) return;
-
-        // Skip if magnet is powered off
-        if (state.get(MagnetBlock.POWERED)) {
-            return;
+        if (!state.get(MagnetBlock.POWERED)) {
+            processMagnetBlock(world, pos, state);
         }
+        processPhantomMagnets(world);
+    }
 
+    private static void processMagnetBlock(World world, BlockPos pos, BlockState state) {
         Vec3d blockCenter = new Vec3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+        boolean isAttracting = state.get(MagnetBlock.ATTRACTING);
+        applyMagneticForce(world, blockCenter, RANGE, FORCE, isAttracting);
+    }
 
-        // Create search area around magnet
-        Box area = new Box(
-                blockCenter.x - RANGE, blockCenter.y - RANGE, blockCenter.z - RANGE,
-                blockCenter.x + RANGE, blockCenter.y + RANGE, blockCenter.z + RANGE
-        );
+    private static void processPhantomMagnets(World world) {
+        if (world instanceof ServerWorld serverWorld) {
+            MinecraftServer server = serverWorld.getServer();
+            PhantomMagnetManager manager = PhantomMagnetManager.get(server);
+            for (PhantomMagnetManager.PhantomMagnet magnet : manager.getMagnets().values()) {
+                Vec3d magnetCenter = new Vec3d(magnet.getPos().getX() + 0.5, magnet.getPos().getY() + 0.5, magnet.getPos().getZ() + 0.5);
+                double force = FORCE * magnet.getForceMultiplier();
+                applyMagneticForce(world, magnetCenter, magnet.getRadius(), force, magnet.isAttracting());
+            }
+        }
+    }
 
+    private static void applyMagneticForce(World world, Vec3d center, double range, double baseForce, boolean isAttracting) {
+        Box area = new Box(center.x - range, center.y - range, center.z - range, center.x + range, center.y + range, center.z + range);
         List<Entity> entities = world.getNonSpectatingEntities(Entity.class, area);
 
         for (Entity entity : entities) {
@@ -62,37 +75,21 @@ public class MagnetBlockEntity extends BlockEntity {
             if (strength <= 0) continue;
 
             Vec3d entityPos = entity.getPos();
-            double distance = entityPos.distanceTo(blockCenter);
-
-            // Apply force if within range but not too close
-            if (distance <= RANGE && distance > 1.5) {
-                Vec3d direction;
-
-                boolean isAttracting = state.get(MagnetBlock.ATTRACTING);
-                if (isAttracting) {
-                    direction = blockCenter.subtract(entityPos).normalize();
-                } else {
-                    direction = entityPos.subtract(blockCenter).normalize();
-                }
-
-                // Calculate force based on distance and entity strength
-                double forceMultiplier = 1.0 - (distance / RANGE);
+            double distance = entityPos.distanceTo(center);
+            if (distance <= range && distance > 1.5) {
+                Vec3d direction = isAttracting ? center.subtract(entityPos).normalize() : entityPos.subtract(center).normalize();
+                double forceMultiplier = 1.0 - (distance / range);
                 double strengthMultiplier = Math.max(0.01, Math.min(strength, 5.0));
-                Vec3d velocity = direction.multiply(FORCE * forceMultiplier * strengthMultiplier);
+                Vec3d velocity = direction.multiply(baseForce * forceMultiplier * strengthMultiplier);
 
                 entity.addVelocity(velocity.x, velocity.y, velocity.z);
                 entity.velocityModified = true;
 
-                // Spawn particles occasionally
                 if (world.random.nextInt(10) == 0) {
-                    if (state.get(MagnetBlock.ATTRACTING)) {
-                        world.addParticle(ParticleTypes.ELECTRIC_SPARK,
-                                entityPos.x, entityPos.y + entity.getHeight() / 2, entityPos.z,
-                                velocity.x * 0.1, velocity.y * 0.1, velocity.z * 0.1);
+                    if (isAttracting) {
+                        world.addParticle(ParticleTypes.ELECTRIC_SPARK, entityPos.x, entityPos.y + entity.getHeight() / 2, entityPos.z, velocity.x * 0.1, velocity.y * 0.1, velocity.z * 0.1);
                     } else {
-                        world.addParticle(ParticleTypes.SOUL_FIRE_FLAME,
-                                entityPos.x, entityPos.y + entity.getHeight() / 2, entityPos.z,
-                                velocity.x * 0.1, velocity.y * 0.1, velocity.z * 0.1);
+                        world.addParticle(ParticleTypes.SOUL_FIRE_FLAME, entityPos.x, entityPos.y + entity.getHeight() / 2, entityPos.z, velocity.x * 0.1, velocity.y * 0.1, velocity.z * 0.1);
                     }
                 }
             }
@@ -100,79 +97,43 @@ public class MagnetBlockEntity extends BlockEntity {
     }
 
     private static double getEntityStrength(Entity entity) {
-        // Iron golems are strongly magnetic
-        if (entity instanceof IronGolemEntity) {
-            return 3.0;
-        }
-
-        // Ender pearls have moderate magnetism
-        if (entity instanceof EnderPearlEntity) {
-            return 1.5;
-        }
-
-        // Check for falling blocks with magnetic properties
-        if (entity.getType().toString().contains("falling") ||
-                entity.getClass().getSimpleName().toLowerCase().contains("falling")) {
-
+        if (entity instanceof IronGolemEntity) return 3.0;
+        if (entity instanceof EnderPearlEntity) return 1.5;
+        if (entity.getType().toString().contains("falling") || entity.getClass().getSimpleName().toLowerCase().contains("falling")) {
             try {
                 Class<?> entityClass = entity.getClass();
                 java.lang.reflect.Field blockField = null;
-
-                // Find block field in falling block entity
                 for (java.lang.reflect.Field field : entityClass.getDeclaredFields()) {
-                    if (field.getType().getSimpleName().contains("Block") ||
-                            field.getType().getSimpleName().contains("BlockState")) {
+                    if (field.getType().getSimpleName().contains("Block") || field.getType().getSimpleName().contains("BlockState")) {
                         blockField = field;
                         break;
                     }
                 }
-
                 if (blockField != null) {
                     blockField.setAccessible(true);
                     Object blockData = blockField.get(entity);
                     String blockString = blockData.toString().toLowerCase();
-
-                    // Check if falling block is magnetic
-                    if (blockString.contains("anvil") ||
-                            blockString.contains("iron") ||
-                            blockString.contains("netherite") ||
-                            blockString.contains("chain") ||
-                            blockString.contains("cauldron") ||
-                            blockString.contains("hopper")) {
+                    if (blockString.contains("anvil") || blockString.contains("iron") || blockString.contains("netherite") || blockString.contains("chain") || blockString.contains("cauldron") || blockString.contains("hopper")) {
                         return 4.0;
                     }
                 }
             } catch (Exception e) {
-                // Fallback: check entity name
                 String entityString = entity.toString().toLowerCase();
-                if (entityString.contains("anvil") || entityString.contains("iron")) {
-                    return 4.0;
-                }
+                if (entityString.contains("anvil") || entityString.contains("iron")) return 4.0;
             }
-
             return 0.0;
         }
-
-        // Item entities use item-based strength
-        if (entity instanceof ItemEntity itemEntity) {
-            ItemStack stack = itemEntity.getStack();
-            return getItemStrength(stack);
-        }
-
-        // Players are magnetic based on their equipment
+        if (entity instanceof ItemEntity itemEntity) return getItemStrength(itemEntity.getStack());
         if (entity instanceof PlayerEntity player) {
             if (player.isCreative() || player.isSpectator()) return 0.0;
             return getPlayerStrength(player);
         }
-
-        // Living entities based on configuration
         if (entity instanceof LivingEntity living) {
             if (living instanceof Monster) return AFFECT_HOSTILE_MOBS ? 1.0 : 0.0;
             if (living instanceof AnimalEntity) return AFFECT_PASSIVE_ANIMALS ? 1.0 : 0.0;
             if (living instanceof VillagerEntity) return AFFECT_VILLAGERS ? 1.0 : 0.0;
             return AFFECT_OTHER_ENTITIES ? 1.0 : 0.0;
         }
-
         return 0.0;
     }
 
@@ -192,30 +153,21 @@ public class MagnetBlockEntity extends BlockEntity {
                 armorPieces++;
             }
         }
-        // Require at least 2 armor pieces to be magnetic
         return armorPieces >= 2 ? totalStrength / armorPieces : 0.0;
     }
 
     private static double getHeldItemStrength(PlayerEntity player) {
-        return Math.max(
-                getItemStrength(player.getMainHandStack()),
-                getItemStrength(player.getOffHandStack())
-        );
+        return Math.max(getItemStrength(player.getMainHandStack()), getItemStrength(player.getOffHandStack()));
     }
 
     private static double getItemStrength(ItemStack stack) {
         if (stack.isEmpty()) return 0.0;
-        // Magnet items are strongly magnetic
-        if (stack.getItem() == ModItems.MAGNET_ITEM) {
-            return 5.0;
-        }
-
+        if (stack.getItem() == ModItems.MAGNET_ITEM) return 5.0;
         Double strength = ITEM_STRENGTH_MAP.get(stack.getItem());
         return strength != null ? strength : 0.0;
     }
 
     private static void initializeItemStrengthMap() {
-        // Define magnetic strength for various items
         ITEM_STRENGTH_MAP.put(Items.ANVIL, 4.0);
         ITEM_STRENGTH_MAP.put(Items.CHIPPED_ANVIL, 3.5);
         ITEM_STRENGTH_MAP.put(Items.DAMAGED_ANVIL, 3.0);
@@ -232,15 +184,6 @@ public class MagnetBlockEntity extends BlockEntity {
         ITEM_STRENGTH_MAP.put(Items.NETHERITE_BOOTS, 3.0);
         ITEM_STRENGTH_MAP.put(Items.NETHERITE_SCRAP, 3.0);
         ITEM_STRENGTH_MAP.put(Items.ANCIENT_DEBRIS, 2.5);
-        ITEM_STRENGTH_MAP.put(Items.DIAMOND_SWORD, 0.8);
-        ITEM_STRENGTH_MAP.put(Items.DIAMOND_AXE, 0.8);
-        ITEM_STRENGTH_MAP.put(Items.DIAMOND_PICKAXE, 0.8);
-        ITEM_STRENGTH_MAP.put(Items.DIAMOND_SHOVEL, 0.7);
-        ITEM_STRENGTH_MAP.put(Items.DIAMOND_HOE, 0.7);
-        ITEM_STRENGTH_MAP.put(Items.DIAMOND_HELMET, 0.7);
-        ITEM_STRENGTH_MAP.put(Items.DIAMOND_CHESTPLATE, 1.0);
-        ITEM_STRENGTH_MAP.put(Items.DIAMOND_LEGGINGS, 0.8);
-        ITEM_STRENGTH_MAP.put(Items.DIAMOND_BOOTS, 0.7);
         ITEM_STRENGTH_MAP.put(Items.ENDER_PEARL, 1.0);
         ITEM_STRENGTH_MAP.put(Items.ENDER_EYE, 1.2);
         ITEM_STRENGTH_MAP.put(Items.IRON_BLOCK, 3.0);
