@@ -1,6 +1,7 @@
 package net.m998.magnetblocks;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
 public class MagnetBlocksMod implements ModInitializer {
@@ -11,7 +12,7 @@ public class MagnetBlocksMod implements ModInitializer {
         ModBlocks.register();
         ModBlockEntities.register();
         ModItems.register();
-        // Register world tick for magnet propagation system
         ServerTickEvents.END_WORLD_TICK.register(MagnetBlock::tickPropagation);
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> MagnetCommands.register(dispatcher));
     }
 }
