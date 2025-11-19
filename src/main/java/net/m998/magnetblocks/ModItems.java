@@ -14,13 +14,11 @@ public class ModItems {
 
     public static void register() {
         Registry.register(Registries.ITEM, new Identifier(MagnetBlocksMod.MOD_ID, "magnet"), MAGNET_ITEM);
-
         ItemGroup MAGNETS_GROUP = ItemGroup.create(ItemGroup.Row.TOP, 0)
                 .displayName(Text.translatable("itemGroup.magnetblocks.magnets"))
                 .icon(() -> new ItemStack(MAGNET_ITEM))
                 .entries((displayContext, entries) -> entries.add(MAGNET_ITEM))
                 .build();
-
         Registry.register(Registries.ITEM_GROUP, new Identifier(MagnetBlocksMod.MOD_ID, "magnets"), MAGNETS_GROUP);
     }
 }
