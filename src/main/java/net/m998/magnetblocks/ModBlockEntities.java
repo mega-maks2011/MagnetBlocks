@@ -12,10 +12,7 @@ public class ModBlockEntities {
         MAGNET_BLOCK_ENTITY = Registry.register(
                 Registries.BLOCK_ENTITY_TYPE,
                 new Identifier(MagnetBlocksMod.MOD_ID, "magnet_block_entity"),
-                BlockEntityType.Builder.create(
-                        MagnetBlockEntity::new,
-                        ModBlocks.MAGNET_BLOCK
-                ).build(null)
+                BlockEntityType.Builder.create(MagnetBlockEntity::new, ModBlocks.MAGNET_BLOCK).build(null)
         );
     }
 }
