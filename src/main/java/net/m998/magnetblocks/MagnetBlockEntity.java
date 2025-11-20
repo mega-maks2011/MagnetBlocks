@@ -3,6 +3,7 @@ package net.m998.magnetblocks;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.FallingBlockEntity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.mob.Monster;
@@ -93,28 +94,7 @@ public class MagnetBlockEntity extends BlockEntity {
     private static double getEntityStrength(Entity entity) {
         if (entity instanceof IronGolemEntity) return 3.0;
         if (entity instanceof EnderPearlEntity) return 1.5;
-        if (entity.getType().toString().contains("falling") || entity.getClass().getSimpleName().toLowerCase().contains("falling")) {
-            try {
-                Class<?> entityClass = entity.getClass();
-                java.lang.reflect.Field blockField = null;
-                for (java.lang.reflect.Field field : entityClass.getDeclaredFields()) {
-                    if (field.getType().getSimpleName().contains("Block") || field.getType().getSimpleName().contains("BlockState")) {
-                        blockField = field;
-                        break;
-                    }
-                }
-                if (blockField != null) {
-                    blockField.setAccessible(true);
-                    Object blockData = blockField.get(entity);
-                    String blockString = blockData.toString().toLowerCase();
-                    if (blockString.contains("anvil") || blockString.contains("iron") || blockString.contains("netherite") || blockString.contains("chain") || blockString.contains("cauldron") || blockString.contains("hopper")) return 4.0;
-                }
-            } catch (Exception e) {
-                String entityString = entity.toString().toLowerCase();
-                if (entityString.contains("anvil") || entityString.contains("iron")) return 4.0;
-            }
-            return 0.0;
-        }
+        if (entity instanceof FallingBlockEntity fallingBlock) return getFallingBlockStrength(fallingBlock);
         if (entity instanceof ItemEntity itemEntity) return getItemStrength(itemEntity.getStack());
         if (entity instanceof PlayerEntity player) {
             if (player.isCreative() || player.isSpectator()) return 0.0;
@@ -125,6 +105,13 @@ public class MagnetBlockEntity extends BlockEntity {
             double baseStrength = getMobBaseStrength(living);
             return Math.max(equipmentStrength, baseStrength);
         }
+        return 0.0;
+    }
+
+    private static double getFallingBlockStrength(FallingBlockEntity fallingBlock) {
+        BlockState blockState = fallingBlock.getBlockState();
+        String blockName = blockState.getBlock().getTranslationKey().toLowerCase();
+        if (blockName.contains("anvil")) return 4.0;
         return 0.0;
     }
 
