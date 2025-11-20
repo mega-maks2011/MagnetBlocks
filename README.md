@@ -1,81 +1,33 @@
-# MagnetBlocks Mod
+# English
 
-[English](#english) | [Русский](#русский)
+Magnet Blocks is a mod that adds magnet mechanics from the "Mineshield 4" Minecraft server (a Russian-language YouTube server).
 
----
+Mod Mechanics
 
-## English
+*   **Dual Polarity:** Each magnet has two modes: Attraction and Repulsion.
+*   **Redstone Control:** Apply a redstone signal to the magnet to completely disable it.
+*   **Polarity Switching:** To change a magnet's polarity, simply right-click it with an Iron Axe. (Yes, it's not the same as on MSh4, but the problem is that implementing the mechanic of changing polarity via lightning strike on a lightning rod is difficult).
+*   **Specific Target Attraction:** The magnet does not affect everything randomly. It chooses specific targets:
+    *   **Players:** Only if they are wearing magnetic armor (Iron, Netherite) AND are holding a magnetic item in their main or off-hand.
+    *   **Other Entities:** Attracts Ender Pearls, Iron Golems, and ~~Anvils (as falling blocks)~~.
+*   **Magnet Network:** The true power is revealed when magnets are combined. If magnet blocks are placed next to each other, they form a single network.
+    *   **Unified Control:** Any action applied to one magnet in the network (disabling with redstone or changing polarity) is instantly propagated to all connected magnets.
+*   **Magnetic Storms:** Occasionally, magnetic storms will occur in the world. They affect the polarity, strength, and radius of magnets. After the storm ends, all magnets return to their previous state.
+*   **The /magnet Command:** Using this command, you can manage "phantom" magnets. Create, delete, modify, etc. You can also manage storms.
 
-### **MagnetBlocks - Magnetic Power at Your Fingertips**
+# Русский
 
-This mod faithfully recreates the iconic **Magnet Block** from the famous **"Mineshield 4"** Minecraft server, bringing its unique and complex magnetism mechanics into your game. Control the battlefield, build intricate transportation systems, or simply have fun with the power of attraction and repulsion!
+Magnet Blocks - это мод добавляющий механику магнитов с майнкрафт сервера ютуберов "Майншилд 4" (сервер русскоязычный)
 
----
+Механики мода
 
-### 🔧 **Features & Mechanics**
-
-*   **Dual Polarity System:** Each magnet has two modes: **Attraction** and **Repulsion**. Shift the forces to your will!
-*   **Redstone Control:** Power the magnet with a redstone signal to **deactivate** it completely, allowing for precise automated systems.
-*   **Polarity Switching:** To change the magnet's polarity, simply **right-click it with an Iron Axe**. The mode will cycle between Attraction and Repulsion.
-*   **Smart Entity Detection:** The magnet doesn't affect everything. It's smart and targets specific entities:
-    *   **Players:** Only if they are wearing magnetic armor (e.g., Iron, Netherite) **AND** are holding a magnetic item (e.g., Iron Ingot, Netherite Ingot) in their main or off-hand.
-    *   **Other Entities:** Attracts **Ender Pearls**, **Iron Golems**, and **Anvils** (as falling block entities).
-*   **Magnet Network:** The true power unfolds when you connect multiple magnets. When placed adjacent to each other, they form a unified network.
-    *   **Unified Control:** Any action performed on one magnet (redstone toggling or polarity switching) is instantly applied to **all connected magnets** in the network.
-
----
-
-### 🕹️ **How to Use**
-
-1.  **Craft** the Magnet Block.
-2.  **Place** it in the world.
-3.  **Right-click with an Iron Axe** to switch between Attraction and Repulsion modes.
-4.  **Apply a Redstone signal** to temporarily disable the magnet.
-5.  **Place magnets next to each other** to create a powerful network for large-scale projects.
-
----
-
-### 🔨 **Compatibility**
-
-This mod is designed to work with magnetic materials from the vanilla game and other popular mods (compatibility list may vary). The core compatible materials are **Iron** and **Netherite**.
-
----
-It's not written in neural 110%
-
-## Русский
-
-### **MagnetBlocks - Магнитная сила в твоих руках**
-
-Этот мод точно воссоздает знаменитый **Блок Магнита** с популярного Minecraft сервера **"Майншилд 4"**, перенося его уникальную и сложную механику магнетизма в вашу игру. Контролируйте поле боя, стройте сложные транспортные системы или просто веселитесь с силой притяжения и отталкивания!
-
----
-
-### 🔧 **Особенности и Механики**
-
-*   **Двойная полярность:** Каждый магнит имеет два режима: **Притяжение** и **Отталкивание**. Изменяйте силы по своей воле!
-*   **Управление редстоуном:** Подайте на магнит редстоун-сигнал, чтобы **полностью отключить** его. Это позволяет создавать точные автоматизированные системы.
-*   **Смена полярности:** Чтобы изменить полярность магнита, просто **нажмите по нему ПКМ с Железным топором**. Режим будет переключаться между Притяжением и Отталкиванием.
-*   **Умное обнаружение целей:** Магнит воздействует не на все подряд. Он умный и выбирает конкретные цели:
-    *   **Игроки:** Только если на них надета магнитная броня (железная, незеритовая) **И** в основной или второй руке находится магнитный предмет (железный слиток, незеритовый слиток и т.д.).
-    *   **Другие сущности:** Притягивает **Эндер-жемчуг**, **Железных големов** и **Наковальни** (в виде падающих блоков).
+*   **Двойная полярность:** Каждый магнит имеет два режима: Притяжение и Отталкивание.
+*   **Управление редстоуном:** Подайте на магнит редстоун-сигнал, чтобы полностью отключить его.
+*   **Смена полярности:** Чтобы изменить полярность магнита, просто нажмите по нему ПКМ с Железным топором. (да, не как на мш4, но проблема в том что реализовать механику при попадании в магнит молнии через громоотвод сложно)
+*   **Притяжение определённых целей:** Магнит воздействует не на все подряд. Он выбирает конкретные цели
+    *   **Игроки:** Только если на них надета магнитная броня (железная, незеритовая) И в основной или второй руке находится магнитный предмет
+    *   **Другие сущности:** Притягивает Эндер-жемчуг, Железных големов и ~~Наковальни (в виде падающих блоков)~~
 *   **Сеть магнитов:** Истинная сила раскрывается при объединении магнитов. Если поставить блоки магнитов рядом, они образуют единую сеть.
-    *   **Единое управление:** Любое действие, примененное к одному магниту в сети (отключение редстоуном или смена полярности), мгновенно распространяется на **все соединенные магниты**.
-
----
-
-### 🕹️ **Как использовать**
-
-1.  **Скрафтите** Блок Магнита.
-2.  **Установите** его в мире.
-3.  **Нажмите ПКМ с Железным топором**, чтобы переключаться между режимами Притяжения и Отталкивания.
-4.  **Подайте редстоун-сигнал**, чтобы временно отключить магнит.
-5.  **Ставьте магниты рядом**, чтобы создавать мощные сети для масштабных проектов.
-
----
-
-### 🔨 **Совместимость**
-
-Мод работает с магнитными материалами из ванильной игры и других популярных модов (список совместимости может меняться). Основные совместимые материалы - это **Железо** и **Незерит**.
-
----
-написано не нейронкой 110%
+    *   **Единое управление:** Любое действие, примененное к одному магниту в сети (отключение редстоуном или смена полярности), мгновенно распространяется на все соединенные магниты.
+*   **Магнитные штормы:** Иногда в мире будут магнитные штормы, они влияют на полярность, силу и радиус магнита, после завершения шторма все магниты вернутся в прежний вид
+*   **Команда /magnet:** с помощью этой команды вы можете управлять "фантомными" магнитами. Создавать, удалять, изменять и тд. Также можно управлять штормами
