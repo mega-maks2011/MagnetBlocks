@@ -9,7 +9,7 @@ Mod Mechanics
 *   **Polarity Switching:** To change a magnet's polarity, simply right-click it with an Iron Axe. (Yes, it's not the same as on MSh4, but the problem is that implementing the mechanic of changing polarity via lightning strike on a lightning rod is difficult).
 *   **Specific Target Attraction:** The magnet does not affect everything randomly. It chooses specific targets:
     *   **Players:** Only if they are wearing magnetic armor (Iron, Netherite) AND are holding a magnetic item in their main or off-hand.
-    *   **Other Entities:** Attracts Ender Pearls, Iron Golems, and ~~Anvils (as falling blocks)~~.
+    *   **Other Entities:** Attracts Ender Pearls, Iron Golems, and Anvils (as falling blocks)
 *   **Magnet Network:** The true power is revealed when magnets are combined. If magnet blocks are placed next to each other, they form a single network.
     *   **Unified Control:** Any action applied to one magnet in the network (disabling with redstone or changing polarity) is instantly propagated to all connected magnets.
 *   **Magnetic Storms:** Occasionally, magnetic storms will occur in the world. They affect the polarity, strength, and radius of magnets. After the storm ends, all magnets return to their previous state.
@@ -26,7 +26,7 @@ Magnet Blocks - это мод добавляющий механику магни
 *   **Смена полярности:** Чтобы изменить полярность магнита, просто нажмите по нему ПКМ с Железным топором. (да, не как на мш4, но проблема в том что реализовать механику при попадании в магнит молнии через громоотвод сложно)
 *   **Притяжение определённых целей:** Магнит воздействует не на все подряд. Он выбирает конкретные цели
     *   **Игроки:** Только если на них надета магнитная броня (железная, незеритовая) И в основной или второй руке находится магнитный предмет
-    *   **Другие сущности:** Притягивает Эндер-жемчуг, Железных големов и ~~Наковальни (в виде падающих блоков)~~
+    *   **Другие сущности:** Притягивает Эндер-жемчуг, Железных големов и Наковальни (в виде падающих блоков)
 *   **Сеть магнитов:** Истинная сила раскрывается при объединении магнитов. Если поставить блоки магнитов рядом, они образуют единую сеть.
     *   **Единое управление:** Любое действие, примененное к одному магниту в сети (отключение редстоуном или смена полярности), мгновенно распространяется на все соединенные магниты.
 *   **Магнитные штормы:** Иногда в мире будут магнитные штормы, они влияют на полярность, силу и радиус магнита, после завершения шторма все магниты вернутся в прежний вид
