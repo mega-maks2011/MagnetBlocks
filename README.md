@@ -12,8 +12,8 @@ Mod Mechanics
     *   **Other Entities:** Attracts Ender Pearls, Iron Golems, and ~~Anvils (as falling blocks)~~.
 *   **Magnet Network:** The true power is revealed when magnets are combined. If magnet blocks are placed next to each other, they form a single network.
     *   **Unified Control:** Any action applied to one magnet in the network (disabling with redstone or changing polarity) is instantly propagated to all connected magnets.
-*   **Magnetic Storms:** Occasionally, magnetic storms will occur in the world. They affect the polarity, strength, and radius of magnets. After the storm ends, all magnets return to their previous state.
-*   **The /magnet Command:** Using this command, you can manage "phantom" magnets. Create, delete, modify, etc. You can also manage storms.
+~~*   **Magnetic Storms:** Occasionally, magnetic storms will occur in the world. They affect the polarity, strength, and radius of magnets. After the storm ends, all magnets return to their previous state.~~
+*   **The /magnet Command:** Using this command, you can manage "phantom" magnets. Create, delete, modify, etc. ~~You can also manage storms.~~
 
 # Русский
 
@@ -29,5 +29,5 @@ Magnet Blocks - это мод добавляющий механику магни
     *   **Другие сущности:** Притягивает Эндер-жемчуг, Железных големов и ~~Наковальни (в виде падающих блоков)~~
 *   **Сеть магнитов:** Истинная сила раскрывается при объединении магнитов. Если поставить блоки магнитов рядом, они образуют единую сеть.
     *   **Единое управление:** Любое действие, примененное к одному магниту в сети (отключение редстоуном или смена полярности), мгновенно распространяется на все соединенные магниты.
-*   **Магнитные штормы:** Иногда в мире будут магнитные штормы, они влияют на полярность, силу и радиус магнита, после завершения шторма все магниты вернутся в прежний вид
-*   **Команда /magnet:** с помощью этой команды вы можете управлять "фантомными" магнитами. Создавать, удалять, изменять и тд. Также можно управлять штормами
+~~*   **Магнитные штормы:** Иногда в мире будут магнитные штормы, они влияют на полярность, силу и радиус магнита, после завершения шторма все магниты вернутся в прежний вид~~
+*   **Команда /magnet:** с помощью этой команды вы можете управлять "фантомными" магнитами. Создавать, удалять, изменять и тд. ~~Также можно управлять штормами~~
