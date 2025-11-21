@@ -1,9 +1,11 @@
 package net.m998.magnetblocks;
 
+import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.BoolArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.command.argument.BlockPosArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
@@ -11,6 +13,9 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraft.server.MinecraftServer;
+import java.util.Objects;
+import java.util.UUID;
 import static net.minecraft.server.command.CommandManager.*;
 
 public class MagnetCommands {
@@ -20,7 +25,7 @@ public class MagnetCommands {
                 .then(literal("create")
                         .then(argument("pos", BlockPosArgumentType.blockPos())
                                 .then(argument("radius", DoubleArgumentType.doubleArg(1.0, 500.0))
-                                        .then(argument("forceMultiplier", DoubleArgumentType.doubleArg(0.1, 10.0))
+                                        .then(argument("forceMultiplier", DoubleArgumentType.doubleArg(0.01, 10.0))
                                                 .then(argument("attracting", BoolArgumentType.bool())
                                                         .executes(context -> createPhantomMagnet(context,
                                                                 BlockPosArgumentType.getBlockPos(context, "pos"),
@@ -36,7 +41,7 @@ public class MagnetCommands {
                                         .then(argument("value", DoubleArgumentType.doubleArg(1.0, 500.0))
                                                 .executes(context -> modifyMagnetRange(context, IntegerArgumentType.getInteger(context, "id"), DoubleArgumentType.getDouble(context, "value")))))
                                 .then(literal("force")
-                                        .then(argument("value", DoubleArgumentType.doubleArg(0.1, 10.0))
+                                        .then(argument("value", DoubleArgumentType.doubleArg(0.01, 10.0))
                                                 .executes(context -> modifyMagnetForce(context, IntegerArgumentType.getInteger(context, "id"), DoubleArgumentType.getDouble(context, "value")))))
                                 .then(literal("polarity")
                                         .then(argument("value", BoolArgumentType.bool())
@@ -45,6 +50,16 @@ public class MagnetCommands {
                         .executes(MagnetCommands::listPhantomMagnets))
                 .then(literal("clear")
                         .executes(MagnetCommands::clearAllPhantomMagnets))
+                .then(literal("whitelist")
+                        .then(literal("add")
+                                .then(argument("player", StringArgumentType.string())
+                                        .then(argument("strength", DoubleArgumentType.doubleArg(0.001, 5.0))
+                                                .executes(context -> whitelistAdd(context, StringArgumentType.getString(context, "player"), DoubleArgumentType.getDouble(context, "strength"))))))
+                        .then(literal("remove")
+                                .then(argument("player", StringArgumentType.string())
+                                        .executes(context -> whitelistRemove(context, StringArgumentType.getString(context, "player")))))
+                        .then(literal("list")
+                                .executes(MagnetCommands::whitelistList)))
                 .then(literal("admin")
                         .requires(source -> source.hasPermissionLevel(3))
                         .then(literal("info")
@@ -61,7 +76,12 @@ public class MagnetCommands {
                                 .then(literal("stop")
                                         .executes(MagnetCommands::adminStormStop))
                                 .then(literal("force")
-                                        .executes(MagnetCommands::adminStormForceRandom)))));
+                                        .executes(MagnetCommands::adminStormForceRandom))
+                                .then(literal("enable")
+                                        .then(argument("value", BoolArgumentType.bool())
+                                                .executes(context -> adminStormEnable(context, BoolArgumentType.getBool(context, "value")))))
+                                .then(literal("status")
+                                        .executes(MagnetCommands::adminStormStatus)))));
     }
 
     private static int createPhantomMagnet(CommandContext<ServerCommandSource> context, BlockPos pos, double radius, double forceMultiplier, boolean attracting) {
@@ -161,6 +181,54 @@ public class MagnetCommands {
         }
     }
 
+    private static int whitelistAdd(CommandContext<ServerCommandSource> context, String playerName, double strength) {
+        try {
+            MinecraftServer server = context.getSource().getServer();
+            UUID playerUUID = Objects.requireNonNull(server.getUserCache()).findByName(playerName).orElseThrow().getId();
+            MagnetWhitelistManager whitelistManager = MagnetWhitelistManager.get(server);
+            whitelistManager.addPlayer(playerUUID, strength);
+            context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.whitelist.add.success", playerName, strength), true);
+            return 1;
+        } catch (Exception e) {
+            context.getSource().sendError(Text.translatable("command.magnetblocks.whitelist.add.error", playerName));
+            return 0;
+        }
+    }
+
+    private static int whitelistRemove(CommandContext<ServerCommandSource> context, String playerName) {
+        try {
+            MinecraftServer server = context.getSource().getServer();
+            UUID playerUUID = Objects.requireNonNull(server.getUserCache()).findByName(playerName).orElseThrow().getId();
+            MagnetWhitelistManager whitelistManager = MagnetWhitelistManager.get(server);
+            boolean removed = whitelistManager.removePlayer(playerUUID);
+            if (removed) {
+                context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.whitelist.remove.success", playerName), true);
+                return 1;
+            } else {
+                context.getSource().sendError(Text.translatable("command.magnetblocks.whitelist.remove.error", playerName));
+                return 0;
+            }
+        } catch (Exception e) {
+            context.getSource().sendError(Text.translatable("command.magnetblocks.whitelist.remove.error", playerName));
+            return 0;
+        }
+    }
+
+    private static int whitelistList(CommandContext<ServerCommandSource> context) {
+        MagnetWhitelistManager whitelistManager = MagnetWhitelistManager.get(context.getSource().getServer());
+        var whitelist = whitelistManager.getWhitelist();
+        if (whitelist.isEmpty()) {
+            context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.whitelist.list.empty"), false);
+        } else {
+            context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.whitelist.list.header", whitelist.size()), false);
+            for (var entry : whitelist.entrySet()) {
+                String playerName = Objects.requireNonNull(context.getSource().getServer().getUserCache()).getByUuid(entry.getKey()).map(GameProfile::getName).orElse("Unknown");
+                context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.whitelist.list.entry", playerName, entry.getValue().getStrength()), false);
+            }
+        }
+        return whitelist.size();
+    }
+
     private static int adminMagnetInfo(CommandContext<ServerCommandSource> context, int id) {
         PhantomMagnetManager manager = PhantomMagnetManager.get(context.getSource().getServer());
         var magnet = manager.getMagnets().get(id);
@@ -243,6 +311,19 @@ public class MagnetCommands {
         }
         stormManager.startStorm(context.getSource().getServer());
         context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.storm.force.success"), true);
+        return 1;
+    }
+
+    private static int adminStormEnable(CommandContext<ServerCommandSource> context, boolean enable) {
+        MagnetStorms.ENABLE_MAGNETIC_STORMS = enable;
+        context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.storm." + (enable ? "enabled" : "disabled")), true);
+        return 1;
+    }
+
+    private static int adminStormStatus(CommandContext<ServerCommandSource> context) {
+        boolean stormsEnabled = MagnetStorms.ENABLE_MAGNETIC_STORMS;
+        context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.admin.storm.status",
+                stormsEnabled ? "enabled" : "disabled"), false);
         return 1;
     }
 }
