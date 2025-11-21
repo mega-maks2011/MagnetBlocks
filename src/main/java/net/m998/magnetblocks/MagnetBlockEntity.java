@@ -6,10 +6,8 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.FallingBlockEntity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.mob.Monster;
-import net.minecraft.entity.passive.AnimalEntity;
+import net.minecraft.entity.mob.EndermanEntity;
 import net.minecraft.entity.passive.IronGolemEntity;
-import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
 import net.minecraft.item.*;
@@ -92,26 +90,32 @@ public class MagnetBlockEntity extends BlockEntity {
     }
 
     private static double getEntityStrength(Entity entity) {
-        if (entity instanceof IronGolemEntity) return 3.0;
-        if (entity instanceof EnderPearlEntity) return 1.5;
-        if (entity instanceof FallingBlockEntity fallingBlock) return getFallingBlockStrength(fallingBlock);
-        if (entity instanceof ItemEntity itemEntity) return getItemStrength(itemEntity.getStack());
         if (entity instanceof PlayerEntity player) {
             if (player.isCreative() || player.isSpectator()) return 0.0;
+            MinecraftServer server = entity.getWorld().getServer();
+            if (server != null) {
+                MagnetWhitelistManager whitelistManager = MagnetWhitelistManager.get(server);
+                Double whitelistStrength = whitelistManager.getPlayerStrength(player.getUuid());
+                if (whitelistStrength != null) return whitelistStrength;
+            }
             return getPlayerStrength(player);
         }
+        if (entity instanceof IronGolemEntity) return 0.5;
+        if (entity instanceof EndermanEntity) return 0.07;
         if (entity instanceof LivingEntity living) {
             double equipmentStrength = getMobEquipmentStrength(living);
-            double baseStrength = getMobBaseStrength(living);
-            return Math.max(equipmentStrength, baseStrength);
+            if (equipmentStrength > 0) return equipmentStrength;
         }
+        if (entity instanceof EnderPearlEntity) return 1.0;
+        if (entity instanceof FallingBlockEntity fallingBlock) return getFallingBlockStrength(fallingBlock);
+        if (entity instanceof ItemEntity itemEntity) return getItemStrength(itemEntity.getStack());
         return 0.0;
     }
 
     private static double getFallingBlockStrength(FallingBlockEntity fallingBlock) {
         BlockState blockState = fallingBlock.getBlockState();
         String blockName = blockState.getBlock().getTranslationKey().toLowerCase();
-        if (blockName.contains("anvil")) return 4.0;
+        if (blockName.contains("anvil")) return 0.72;
         return 0.0;
     }
 
@@ -132,13 +136,6 @@ public class MagnetBlockEntity extends BlockEntity {
             magneticItems++;
         }
         return magneticItems > 0 ? totalStrength / magneticItems : 0.0;
-    }
-
-    private static double getMobBaseStrength(LivingEntity mob) {
-        if (mob instanceof Monster) return MagnetStorms.AFFECT_HOSTILE_MOBS ? 0.5 : 0.0;
-        if (mob instanceof AnimalEntity) return MagnetStorms.AFFECT_PASSIVE_ANIMALS ? 0.3 : 0.0;
-        if (mob instanceof VillagerEntity) return MagnetStorms.AFFECT_VILLAGERS ? 0.4 : 0.0;
-        return MagnetStorms.AFFECT_OTHER_ENTITIES ? 0.2 : 0.0;
     }
 
     private static double getPlayerStrength(PlayerEntity player) {
@@ -166,91 +163,99 @@ public class MagnetBlockEntity extends BlockEntity {
 
     private static double getItemStrength(ItemStack stack) {
         if (stack.isEmpty()) return 0.0;
-        if (stack.getItem() == ModItems.MAGNET_ITEM) return 5.0;
+        if (stack.getItem() == ModItems.MAGNET_ITEM) return 4.5;
         Double strength = ITEM_STRENGTH_MAP.get(stack.getItem());
         return strength != null ? strength : 0.0;
     }
 
     private static void initializeItemStrengthMap() {
-        ITEM_STRENGTH_MAP.put(Items.ANVIL, 4.0);
-        ITEM_STRENGTH_MAP.put(Items.CHIPPED_ANVIL, 3.5);
-        ITEM_STRENGTH_MAP.put(Items.DAMAGED_ANVIL, 3.0);
-        ITEM_STRENGTH_MAP.put(Items.NETHERITE_BLOCK, 5.0);
-        ITEM_STRENGTH_MAP.put(Items.NETHERITE_INGOT, 3.0);
-        ITEM_STRENGTH_MAP.put(Items.NETHERITE_SWORD, 3.5);
-        ITEM_STRENGTH_MAP.put(Items.NETHERITE_AXE, 3.5);
-        ITEM_STRENGTH_MAP.put(Items.NETHERITE_PICKAXE, 3.5);
-        ITEM_STRENGTH_MAP.put(Items.NETHERITE_SHOVEL, 3.0);
-        ITEM_STRENGTH_MAP.put(Items.NETHERITE_HOE, 3.0);
-        ITEM_STRENGTH_MAP.put(Items.NETHERITE_HELMET, 3.0);
-        ITEM_STRENGTH_MAP.put(Items.NETHERITE_CHESTPLATE, 4.0);
-        ITEM_STRENGTH_MAP.put(Items.NETHERITE_LEGGINGS, 3.5);
-        ITEM_STRENGTH_MAP.put(Items.NETHERITE_BOOTS, 3.0);
-        ITEM_STRENGTH_MAP.put(Items.NETHERITE_SCRAP, 3.0);
-        ITEM_STRENGTH_MAP.put(Items.ANCIENT_DEBRIS, 2.5);
+        ITEM_STRENGTH_MAP.put(Items.NETHERITE_BLOCK, 1.2);
+        ITEM_STRENGTH_MAP.put(Items.NETHERITE_INGOT, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.NETHERITE_SWORD, 1.08);
+        ITEM_STRENGTH_MAP.put(Items.NETHERITE_AXE, 1.08);
+        ITEM_STRENGTH_MAP.put(Items.NETHERITE_PICKAXE, 1.08);
+        ITEM_STRENGTH_MAP.put(Items.NETHERITE_SHOVEL, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.NETHERITE_HOE, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.NETHERITE_HELMET, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.NETHERITE_CHESTPLATE, 1.2);
+        ITEM_STRENGTH_MAP.put(Items.NETHERITE_LEGGINGS, 1.08);
+        ITEM_STRENGTH_MAP.put(Items.NETHERITE_BOOTS, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.NETHERITE_SCRAP, 0.72);
+        ITEM_STRENGTH_MAP.put(Items.ANCIENT_DEBRIS, 0.6);
+        ITEM_STRENGTH_MAP.put(Items.IRON_BLOCK, 1.8);
+        ITEM_STRENGTH_MAP.put(Items.RAW_IRON_BLOCK, 1.5);
+        ITEM_STRENGTH_MAP.put(Items.IRON_DOOR, 1.2);
+        ITEM_STRENGTH_MAP.put(Items.IRON_TRAPDOOR, 1.08);
+        ITEM_STRENGTH_MAP.put(Items.IRON_BARS, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.CHAIN, 0.72);
+        ITEM_STRENGTH_MAP.put(Items.HOPPER, 1.68);
+        ITEM_STRENGTH_MAP.put(Items.CAULDRON, 1.2);
+        ITEM_STRENGTH_MAP.put(Items.IRON_SWORD, 1.08);
+        ITEM_STRENGTH_MAP.put(Items.IRON_AXE, 1.08);
+        ITEM_STRENGTH_MAP.put(Items.IRON_PICKAXE, 1.08);
+        ITEM_STRENGTH_MAP.put(Items.IRON_SHOVEL, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.IRON_HOE, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.SHEARS, 0.72);
+        ITEM_STRENGTH_MAP.put(Items.FLINT_AND_STEEL, 0.48);
+        ITEM_STRENGTH_MAP.put(Items.IRON_HELMET, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.IRON_CHESTPLATE, 1.5);
+        ITEM_STRENGTH_MAP.put(Items.IRON_LEGGINGS, 1.2);
+        ITEM_STRENGTH_MAP.put(Items.IRON_BOOTS, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.IRON_HORSE_ARMOR, 1.2);
+        ITEM_STRENGTH_MAP.put(Items.IRON_INGOT, 0.6);
+        ITEM_STRENGTH_MAP.put(Items.RAW_IRON, 0.48);
+        ITEM_STRENGTH_MAP.put(Items.IRON_NUGGET, 0.18);
+        ITEM_STRENGTH_MAP.put(Items.IRON_ORE, 0.48);
+        ITEM_STRENGTH_MAP.put(Items.DEEPSLATE_IRON_ORE, 0.48);
+        ITEM_STRENGTH_MAP.put(Items.ANVIL, 1.5);
+        ITEM_STRENGTH_MAP.put(Items.CHIPPED_ANVIL, 1.0);
+        ITEM_STRENGTH_MAP.put(Items.DAMAGED_ANVIL, 0.7);
+        ITEM_STRENGTH_MAP.put(Items.BUCKET, 0.6);
+        ITEM_STRENGTH_MAP.put(Items.MINECART, 1.5);
+        ITEM_STRENGTH_MAP.put(Items.RAIL, 0.36);
+        ITEM_STRENGTH_MAP.put(Items.POWERED_RAIL, 0.48);
+        ITEM_STRENGTH_MAP.put(Items.DETECTOR_RAIL, 0.48);
+        ITEM_STRENGTH_MAP.put(Items.ACTIVATOR_RAIL, 0.48);
+        ITEM_STRENGTH_MAP.put(Items.COMPASS, 0.3);
+        ITEM_STRENGTH_MAP.put(Items.PISTON, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.STICKY_PISTON, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.TRIPWIRE_HOOK, 0.24);
+        ITEM_STRENGTH_MAP.put(Items.CHEST_MINECART, 1.68);
+        ITEM_STRENGTH_MAP.put(Items.FURNACE_MINECART, 1.8);
+        ITEM_STRENGTH_MAP.put(Items.TNT_MINECART, 1.68);
+        ITEM_STRENGTH_MAP.put(Items.HOPPER_MINECART, 1.8);
+        ITEM_STRENGTH_MAP.put(Items.SMITHING_TABLE, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.IRON_GOLEM_SPAWN_EGG, 0.42);
+        ITEM_STRENGTH_MAP.put(Items.HEAVY_WEIGHTED_PRESSURE_PLATE, 1.08);
+        ITEM_STRENGTH_MAP.put(Items.LAVA_BUCKET, 0.72);
+        ITEM_STRENGTH_MAP.put(Items.WATER_BUCKET, 0.6);
+        ITEM_STRENGTH_MAP.put(Items.MILK_BUCKET, 0.6);
+        ITEM_STRENGTH_MAP.put(Items.POWDER_SNOW_BUCKET, 0.6);
+        ITEM_STRENGTH_MAP.put(Items.AXOLOTL_BUCKET, 0.6);
+        ITEM_STRENGTH_MAP.put(Items.COD_BUCKET, 0.6);
+        ITEM_STRENGTH_MAP.put(Items.SALMON_BUCKET, 0.6);
+        ITEM_STRENGTH_MAP.put(Items.TROPICAL_FISH_BUCKET, 0.6);
+        ITEM_STRENGTH_MAP.put(Items.PUFFERFISH_BUCKET, 0.6);
+        ITEM_STRENGTH_MAP.put(Items.TADPOLE_BUCKET, 0.6);
+        ITEM_STRENGTH_MAP.put(Items.LANTERN, 0.36);
+        ITEM_STRENGTH_MAP.put(Items.SOUL_LANTERN, 0.36);
+        ITEM_STRENGTH_MAP.put(Items.SHIELD, 0.3);
+        ITEM_STRENGTH_MAP.put(Items.SADDLE, 0.18);
+        ITEM_STRENGTH_MAP.put(Items.LODESTONE, 2.4);
+        ITEM_STRENGTH_MAP.put(Items.CHAINMAIL_HELMET, 0.72);
+        ITEM_STRENGTH_MAP.put(Items.CHAINMAIL_CHESTPLATE, 1.08);
+        ITEM_STRENGTH_MAP.put(Items.CHAINMAIL_LEGGINGS, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.CHAINMAIL_BOOTS, 0.72);
+        ITEM_STRENGTH_MAP.put(Items.REDSTONE, 0.03);
+        ITEM_STRENGTH_MAP.put(Items.REDSTONE_BLOCK, 0.06);
+        ITEM_STRENGTH_MAP.put(Items.REPEATER, 0.12);
+        ITEM_STRENGTH_MAP.put(Items.COMPARATOR, 0.12);
+        ITEM_STRENGTH_MAP.put(Items.OBSERVER, 0.6);
         ITEM_STRENGTH_MAP.put(Items.ENDER_PEARL, 1.0);
-        ITEM_STRENGTH_MAP.put(Items.ENDER_EYE, 1.2);
-        ITEM_STRENGTH_MAP.put(Items.IRON_BLOCK, 3.0);
-        ITEM_STRENGTH_MAP.put(Items.RAW_IRON_BLOCK, 2.5);
-        ITEM_STRENGTH_MAP.put(Items.IRON_DOOR, 2.0);
-        ITEM_STRENGTH_MAP.put(Items.IRON_TRAPDOOR, 1.5);
-        ITEM_STRENGTH_MAP.put(Items.IRON_BARS, 1.0);
-        ITEM_STRENGTH_MAP.put(Items.CHAIN, 0.8);
-        ITEM_STRENGTH_MAP.put(Items.HOPPER, 2.5);
-        ITEM_STRENGTH_MAP.put(Items.CAULDRON, 2.0);
-        ITEM_STRENGTH_MAP.put(Items.BUCKET, 1.0);
-        ITEM_STRENGTH_MAP.put(Items.MINECART, 2.5);
-        ITEM_STRENGTH_MAP.put(Items.RAIL, 0.5);
-        ITEM_STRENGTH_MAP.put(Items.POWERED_RAIL, 1.0);
-        ITEM_STRENGTH_MAP.put(Items.DETECTOR_RAIL, 1.0);
-        ITEM_STRENGTH_MAP.put(Items.ACTIVATOR_RAIL, 1.0);
-        ITEM_STRENGTH_MAP.put(Items.IRON_SWORD, 2.0);
-        ITEM_STRENGTH_MAP.put(Items.IRON_AXE, 2.0);
-        ITEM_STRENGTH_MAP.put(Items.IRON_PICKAXE, 2.0);
-        ITEM_STRENGTH_MAP.put(Items.IRON_SHOVEL, 1.5);
-        ITEM_STRENGTH_MAP.put(Items.IRON_HOE, 1.5);
-        ITEM_STRENGTH_MAP.put(Items.SHEARS, 1.0);
-        ITEM_STRENGTH_MAP.put(Items.FLINT_AND_STEEL, 0.3);
-        ITEM_STRENGTH_MAP.put(Items.IRON_HELMET, 1.5);
-        ITEM_STRENGTH_MAP.put(Items.IRON_CHESTPLATE, 2.5);
-        ITEM_STRENGTH_MAP.put(Items.IRON_LEGGINGS, 2.0);
-        ITEM_STRENGTH_MAP.put(Items.IRON_BOOTS, 1.5);
-        ITEM_STRENGTH_MAP.put(Items.IRON_HORSE_ARMOR, 2.0);
-        ITEM_STRENGTH_MAP.put(Items.IRON_INGOT, 1.0);
-        ITEM_STRENGTH_MAP.put(Items.RAW_IRON, 0.8);
-        ITEM_STRENGTH_MAP.put(Items.IRON_NUGGET, 0.3);
-        ITEM_STRENGTH_MAP.put(Items.IRON_ORE, 0.8);
-        ITEM_STRENGTH_MAP.put(Items.DEEPSLATE_IRON_ORE, 0.8);
-        ITEM_STRENGTH_MAP.put(Items.COMPASS, 0.7);
-        ITEM_STRENGTH_MAP.put(Items.PISTON, 1.5);
-        ITEM_STRENGTH_MAP.put(Items.STICKY_PISTON, 1.5);
-        ITEM_STRENGTH_MAP.put(Items.TRIPWIRE_HOOK, 0.5);
-        ITEM_STRENGTH_MAP.put(Items.CHEST_MINECART, 2.5);
-        ITEM_STRENGTH_MAP.put(Items.FURNACE_MINECART, 3.0);
-        ITEM_STRENGTH_MAP.put(Items.TNT_MINECART, 2.5);
-        ITEM_STRENGTH_MAP.put(Items.HOPPER_MINECART, 3.0);
-        ITEM_STRENGTH_MAP.put(Items.SMITHING_TABLE, 2.0);
-        ITEM_STRENGTH_MAP.put(Items.IRON_GOLEM_SPAWN_EGG, 1.0);
-        ITEM_STRENGTH_MAP.put(Items.HEAVY_WEIGHTED_PRESSURE_PLATE, 1.8);
-        ITEM_STRENGTH_MAP.put(Items.LAVA_BUCKET, 1.3);
-        ITEM_STRENGTH_MAP.put(Items.WATER_BUCKET, 1.1);
-        ITEM_STRENGTH_MAP.put(Items.MILK_BUCKET, 1.1);
-        ITEM_STRENGTH_MAP.put(Items.POWDER_SNOW_BUCKET, 1.1);
-        ITEM_STRENGTH_MAP.put(Items.AXOLOTL_BUCKET, 1.1);
-        ITEM_STRENGTH_MAP.put(Items.COD_BUCKET, 1.1);
-        ITEM_STRENGTH_MAP.put(Items.SALMON_BUCKET, 1.1);
-        ITEM_STRENGTH_MAP.put(Items.TROPICAL_FISH_BUCKET, 1.1);
-        ITEM_STRENGTH_MAP.put(Items.PUFFERFISH_BUCKET, 1.1);
-        ITEM_STRENGTH_MAP.put(Items.TADPOLE_BUCKET, 1.1);
-        ITEM_STRENGTH_MAP.put(Items.LANTERN, 0.9);
-        ITEM_STRENGTH_MAP.put(Items.SOUL_LANTERN, 0.9);
-        ITEM_STRENGTH_MAP.put(Items.SHIELD, 1.8);
-        ITEM_STRENGTH_MAP.put(Items.SADDLE, 0.8);
-        ITEM_STRENGTH_MAP.put(Items.REDSTONE, 0.1);
-        ITEM_STRENGTH_MAP.put(Items.REDSTONE_BLOCK, 0.3);
-        ITEM_STRENGTH_MAP.put(Items.REPEATER, 0.5);
-        ITEM_STRENGTH_MAP.put(Items.COMPARATOR, 0.5);
-        ITEM_STRENGTH_MAP.put(Items.OBSERVER, 1.0);
-        ITEM_STRENGTH_MAP.put(Items.LODESTONE, 4.0);
+        ITEM_STRENGTH_MAP.put(Items.ENDER_EYE, 1.0);
+        ITEM_STRENGTH_MAP.put(Items.BLAST_FURNACE, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.DISPENSER, 0.48);
+        ITEM_STRENGTH_MAP.put(Items.DROPPER, 0.48);
+        ITEM_STRENGTH_MAP.put(Items.CLOCK, 0.12);
     }
 }
