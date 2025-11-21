@@ -1,7 +1,7 @@
 package net.m998.magnetblocks;
 
 public class MagnetStorms {
-    public static final boolean ENABLE_MAGNETIC_STORMS = true;
+    public static boolean ENABLE_MAGNETIC_STORMS = true;
     public static final int MIN_STORM_INTERVAL = 60;
     public static final int MAX_STORM_INTERVAL = 180;
     public static final int MIN_STORM_DURATION = 2;
