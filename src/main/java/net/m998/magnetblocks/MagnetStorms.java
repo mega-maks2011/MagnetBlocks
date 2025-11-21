@@ -12,8 +12,4 @@ public class MagnetStorms {
     public static final boolean STORM_POWER_BOOST = true;
     public static final boolean STORM_POWER_REDUCE = true;
     public static final boolean STORM_RANDOM_RADIUS = true;
-    public static final boolean AFFECT_HOSTILE_MOBS = true;
-    public static final boolean AFFECT_PASSIVE_ANIMALS = true;
-    public static final boolean AFFECT_VILLAGERS = true;
-    public static final boolean AFFECT_OTHER_ENTITIES = true;
 }
