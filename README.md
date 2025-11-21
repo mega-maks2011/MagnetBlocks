@@ -13,7 +13,9 @@ Mod Mechanics
 *   **Magnet Network:** The true power is revealed when magnets are combined. If magnet blocks are placed next to each other, they form a single network.
     *   **Unified Control:** Any action applied to one magnet in the network (disabling with redstone or changing polarity) is instantly propagated to all connected magnets.
 *   **Magnetic Storms:** Occasionally, magnetic storms will occur in the world. They affect the polarity, strength, and radius of magnets. After the storm ends, all magnets return to their previous state.
+    *   **Storm Management:** You can turn off, create, and remove storms.
 *   **The /magnet Command:** Using this command, you can manage "phantom" magnets. Create, delete, modify, etc. You can also manage storms.
+*   **Whitelist:** You can whitelist the player's nickname and he will always be attracted to the magnet.
 
 # Русский
 
@@ -30,4 +32,6 @@ Magnet Blocks - это мод добавляющий механику магни
 *   **Сеть магнитов:** Истинная сила раскрывается при объединении магнитов. Если поставить блоки магнитов рядом, они образуют единую сеть.
     *   **Единое управление:** Любое действие, примененное к одному магниту в сети (отключение редстоуном или смена полярности), мгновенно распространяется на все соединенные магниты.
 *   **Магнитные штормы:** Иногда в мире будут магнитные штормы, они влияют на полярность, силу и радиус магнита, после завершения шторма все магниты вернутся в прежний вид
+    *   **Управление штормами:** вы можете выключать, создовать и убирать штормы
 *   **Команда /magnet:** с помощью этой команды вы можете управлять "фантомными" магнитами. Создавать, удалять, изменять и тд. Также можно управлять штормами
+*   **Белый список:** вы можете вписать в белый список ник игрока и он будет приятгиватся к магниту всегда
