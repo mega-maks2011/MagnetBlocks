@@ -16,6 +16,7 @@ public class MagnetBlocksMod implements ModInitializer {
         ServerTickEvents.START_SERVER_TICK.register(server -> {
             MagneticStormManager stormManager = MagneticStormManager.get(server);
             stormManager.tick(server);
+            MagnetWhitelistManager.get(server);
         });
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> MagnetCommands.register(dispatcher));
     }
