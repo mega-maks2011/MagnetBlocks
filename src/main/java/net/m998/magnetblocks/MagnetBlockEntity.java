@@ -24,7 +24,8 @@ import java.util.Map;
 
 public class MagnetBlockEntity extends BlockEntity {
     private static final double RANGE = 40.0;
-    private static final double FORCE = 0.001;
+    private static final double FORCE = 0.01;
+    private static final double PHANTOM_BASE_FORCE = 0.04;
     private static final Map<Item, Double> ITEM_STRENGTH_MAP = new HashMap<>();
 
     static {
@@ -37,52 +38,63 @@ public class MagnetBlockEntity extends BlockEntity {
 
     public static void tick(World world, BlockPos pos, BlockState state) {
         if (world.isClient) return;
-        if (!state.get(MagnetBlock.POWERED)) processMagnetBlock(world, pos, state);
-        processPhantomMagnets(world);
+        if (!state.get(MagnetBlock.POWERED)) {
+            processMagnetBlock(world, pos, state);
+        }
     }
 
     private static void processMagnetBlock(World world, BlockPos pos, BlockState state) {
         Vec3d blockCenter = new Vec3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
         boolean isAttracting = state.get(MagnetBlock.ATTRACTING);
-        applyMagneticForce(world, blockCenter, RANGE, FORCE, isAttracting);
+        applyMagneticForceToArea(world, blockCenter, RANGE, FORCE, isAttracting, false);
     }
 
-    private static void processPhantomMagnets(World world) {
+    public static void processAllPhantomMagnets(World world) {
+        if (world.isClient) return;
         if (world instanceof ServerWorld serverWorld) {
             MinecraftServer server = serverWorld.getServer();
             PhantomMagnetManager manager = PhantomMagnetManager.get(server);
-            for (PhantomMagnetManager.PhantomMagnet magnet : manager.getMagnets().values()) {
-                Vec3d magnetCenter = new Vec3d(magnet.getPos().getX() + 0.5, magnet.getPos().getY() + 0.5, magnet.getPos().getZ() + 0.5);
-                double force = FORCE * magnet.getForceMultiplier();
-                applyMagneticForce(world, magnetCenter, magnet.getRadius(), force, magnet.isAttracting());
+            var magnets = manager.getMagnets();
+            if (!magnets.isEmpty()) {
+                for (var entry : magnets.entrySet()) {
+                    PhantomMagnetManager.PhantomMagnet magnet = entry.getValue();
+                    Vec3d magnetCenter = new Vec3d(magnet.getPos().getX() + 0.5, magnet.getPos().getY() + 0.5, magnet.getPos().getZ() + 0.5);
+                    double force = PHANTOM_BASE_FORCE * magnet.getForceMultiplier();
+                    applyMagneticForceToArea(world, magnetCenter, magnet.getRadius(), force, magnet.isAttracting(), true);
+                }
             }
         }
     }
 
-    private static void applyMagneticForce(World world, Vec3d center, double range, double baseForce, boolean isAttracting) {
+    private static void applyMagneticForceToArea(World world, Vec3d center, double range, double baseForce, boolean isAttracting, boolean isPhantom) {
         Box area = new Box(center.x - range, center.y - range, center.z - range, center.x + range, center.y + range, center.z + range);
         List<Entity> entities = world.getNonSpectatingEntities(Entity.class, area);
-
         for (Entity entity : entities) {
             double strength = getEntityStrength(entity);
             if (strength <= 0) continue;
-
             Vec3d entityPos = entity.getPos();
             double distance = entityPos.distanceTo(center);
             if (distance <= range && distance > 1.5) {
                 Vec3d direction = isAttracting ? center.subtract(entityPos).normalize() : entityPos.subtract(center).normalize();
                 double forceMultiplier = 1.0 - (distance / range);
                 double strengthMultiplier = Math.max(0.01, Math.min(strength, 5.0));
-                Vec3d velocity = direction.multiply(baseForce * forceMultiplier * strengthMultiplier);
-
+                double actualForce = isPhantom ? baseForce : FORCE;
+                Vec3d velocity = direction.multiply(actualForce * forceMultiplier * strengthMultiplier);
                 entity.addVelocity(velocity.x, velocity.y, velocity.z);
                 entity.velocityModified = true;
-
-                if (world.random.nextInt(10) == 0) {
+                if (world.random.nextInt(isPhantom ? 3 : 10) == 0) {
                     if (isAttracting) {
-                        world.addParticle(ParticleTypes.ELECTRIC_SPARK, entityPos.x, entityPos.y + entity.getHeight() / 2, entityPos.z, velocity.x * 0.1, velocity.y * 0.1, velocity.z * 0.1);
+                        if (isPhantom) {
+                            world.addParticle(ParticleTypes.SOUL_FIRE_FLAME, entityPos.x, entityPos.y + entity.getHeight() / 2, entityPos.z, velocity.x * 0.1, velocity.y * 0.1, velocity.z * 0.1);
+                        } else {
+                            world.addParticle(ParticleTypes.ELECTRIC_SPARK, entityPos.x, entityPos.y + entity.getHeight() / 2, entityPos.z, velocity.x * 0.1, velocity.y * 0.1, velocity.z * 0.1);
+                        }
                     } else {
-                        world.addParticle(ParticleTypes.SOUL_FIRE_FLAME, entityPos.x, entityPos.y + entity.getHeight() / 2, entityPos.z, velocity.x * 0.1, velocity.y * 0.1, velocity.z * 0.1);
+                        if (isPhantom) {
+                            world.addParticle(ParticleTypes.REVERSE_PORTAL, entityPos.x, entityPos.y + entity.getHeight() / 2, entityPos.z, velocity.x * 0.1, velocity.y * 0.1, velocity.z * 0.1);
+                        } else {
+                            world.addParticle(ParticleTypes.SOUL_FIRE_FLAME, entityPos.x, entityPos.y + entity.getHeight() / 2, entityPos.z, velocity.x * 0.1, velocity.y * 0.1, velocity.z * 0.1);
+                        }
                     }
                 }
             }
@@ -100,13 +112,13 @@ public class MagnetBlockEntity extends BlockEntity {
             }
             return getPlayerStrength(player);
         }
-        if (entity instanceof IronGolemEntity) return 0.5;
-        if (entity instanceof EndermanEntity) return 0.07;
+        if (entity instanceof IronGolemEntity) return 2.5;
+        if (entity instanceof EndermanEntity) return 0.5;
         if (entity instanceof LivingEntity living) {
             double equipmentStrength = getMobEquipmentStrength(living);
             if (equipmentStrength > 0) return equipmentStrength;
         }
-        if (entity instanceof EnderPearlEntity) return 1.0;
+        if (entity instanceof EnderPearlEntity) return 2.5;
         if (entity instanceof FallingBlockEntity fallingBlock) return getFallingBlockStrength(fallingBlock);
         if (entity instanceof ItemEntity itemEntity) return getItemStrength(itemEntity.getStack());
         return 0.0;
@@ -115,7 +127,7 @@ public class MagnetBlockEntity extends BlockEntity {
     private static double getFallingBlockStrength(FallingBlockEntity fallingBlock) {
         BlockState blockState = fallingBlock.getBlockState();
         String blockName = blockState.getBlock().getTranslationKey().toLowerCase();
-        if (blockName.contains("anvil")) return 0.72;
+        if (blockName.contains("anvil")) return 3.0;
         return 0.0;
     }
 
@@ -169,6 +181,7 @@ public class MagnetBlockEntity extends BlockEntity {
     }
 
     private static void initializeItemStrengthMap() {
+        // Netherite items
         ITEM_STRENGTH_MAP.put(Items.NETHERITE_BLOCK, 1.2);
         ITEM_STRENGTH_MAP.put(Items.NETHERITE_INGOT, 0.9);
         ITEM_STRENGTH_MAP.put(Items.NETHERITE_SWORD, 1.08);
@@ -182,6 +195,8 @@ public class MagnetBlockEntity extends BlockEntity {
         ITEM_STRENGTH_MAP.put(Items.NETHERITE_BOOTS, 0.9);
         ITEM_STRENGTH_MAP.put(Items.NETHERITE_SCRAP, 0.72);
         ITEM_STRENGTH_MAP.put(Items.ANCIENT_DEBRIS, 0.6);
+
+        // Iron blocks and construction
         ITEM_STRENGTH_MAP.put(Items.IRON_BLOCK, 1.8);
         ITEM_STRENGTH_MAP.put(Items.RAW_IRON_BLOCK, 1.5);
         ITEM_STRENGTH_MAP.put(Items.IRON_DOOR, 1.2);
@@ -190,6 +205,8 @@ public class MagnetBlockEntity extends BlockEntity {
         ITEM_STRENGTH_MAP.put(Items.CHAIN, 0.72);
         ITEM_STRENGTH_MAP.put(Items.HOPPER, 1.68);
         ITEM_STRENGTH_MAP.put(Items.CAULDRON, 1.2);
+
+        // Iron tools and weapons
         ITEM_STRENGTH_MAP.put(Items.IRON_SWORD, 1.08);
         ITEM_STRENGTH_MAP.put(Items.IRON_AXE, 1.08);
         ITEM_STRENGTH_MAP.put(Items.IRON_PICKAXE, 1.08);
@@ -197,36 +214,28 @@ public class MagnetBlockEntity extends BlockEntity {
         ITEM_STRENGTH_MAP.put(Items.IRON_HOE, 0.9);
         ITEM_STRENGTH_MAP.put(Items.SHEARS, 0.72);
         ITEM_STRENGTH_MAP.put(Items.FLINT_AND_STEEL, 0.48);
+
+        // Iron armor
         ITEM_STRENGTH_MAP.put(Items.IRON_HELMET, 0.9);
         ITEM_STRENGTH_MAP.put(Items.IRON_CHESTPLATE, 1.5);
         ITEM_STRENGTH_MAP.put(Items.IRON_LEGGINGS, 1.2);
         ITEM_STRENGTH_MAP.put(Items.IRON_BOOTS, 0.9);
         ITEM_STRENGTH_MAP.put(Items.IRON_HORSE_ARMOR, 1.2);
+
+        // Iron materials and ores
         ITEM_STRENGTH_MAP.put(Items.IRON_INGOT, 0.6);
         ITEM_STRENGTH_MAP.put(Items.RAW_IRON, 0.48);
         ITEM_STRENGTH_MAP.put(Items.IRON_NUGGET, 0.18);
         ITEM_STRENGTH_MAP.put(Items.IRON_ORE, 0.48);
         ITEM_STRENGTH_MAP.put(Items.DEEPSLATE_IRON_ORE, 0.48);
+
+        // Anvils
         ITEM_STRENGTH_MAP.put(Items.ANVIL, 1.5);
         ITEM_STRENGTH_MAP.put(Items.CHIPPED_ANVIL, 1.0);
         ITEM_STRENGTH_MAP.put(Items.DAMAGED_ANVIL, 0.7);
+
+        // Buckets and containers
         ITEM_STRENGTH_MAP.put(Items.BUCKET, 0.6);
-        ITEM_STRENGTH_MAP.put(Items.MINECART, 1.5);
-        ITEM_STRENGTH_MAP.put(Items.RAIL, 0.36);
-        ITEM_STRENGTH_MAP.put(Items.POWERED_RAIL, 0.48);
-        ITEM_STRENGTH_MAP.put(Items.DETECTOR_RAIL, 0.48);
-        ITEM_STRENGTH_MAP.put(Items.ACTIVATOR_RAIL, 0.48);
-        ITEM_STRENGTH_MAP.put(Items.COMPASS, 0.3);
-        ITEM_STRENGTH_MAP.put(Items.PISTON, 0.9);
-        ITEM_STRENGTH_MAP.put(Items.STICKY_PISTON, 0.9);
-        ITEM_STRENGTH_MAP.put(Items.TRIPWIRE_HOOK, 0.24);
-        ITEM_STRENGTH_MAP.put(Items.CHEST_MINECART, 1.68);
-        ITEM_STRENGTH_MAP.put(Items.FURNACE_MINECART, 1.8);
-        ITEM_STRENGTH_MAP.put(Items.TNT_MINECART, 1.68);
-        ITEM_STRENGTH_MAP.put(Items.HOPPER_MINECART, 1.8);
-        ITEM_STRENGTH_MAP.put(Items.SMITHING_TABLE, 0.9);
-        ITEM_STRENGTH_MAP.put(Items.IRON_GOLEM_SPAWN_EGG, 0.42);
-        ITEM_STRENGTH_MAP.put(Items.HEAVY_WEIGHTED_PRESSURE_PLATE, 1.08);
         ITEM_STRENGTH_MAP.put(Items.LAVA_BUCKET, 0.72);
         ITEM_STRENGTH_MAP.put(Items.WATER_BUCKET, 0.6);
         ITEM_STRENGTH_MAP.put(Items.MILK_BUCKET, 0.6);
@@ -237,20 +246,46 @@ public class MagnetBlockEntity extends BlockEntity {
         ITEM_STRENGTH_MAP.put(Items.TROPICAL_FISH_BUCKET, 0.6);
         ITEM_STRENGTH_MAP.put(Items.PUFFERFISH_BUCKET, 0.6);
         ITEM_STRENGTH_MAP.put(Items.TADPOLE_BUCKET, 0.6);
+
+        // Minecarts and rails
+        ITEM_STRENGTH_MAP.put(Items.MINECART, 1.5);
+        ITEM_STRENGTH_MAP.put(Items.RAIL, 0.36);
+        ITEM_STRENGTH_MAP.put(Items.POWERED_RAIL, 0.48);
+        ITEM_STRENGTH_MAP.put(Items.DETECTOR_RAIL, 0.48);
+        ITEM_STRENGTH_MAP.put(Items.ACTIVATOR_RAIL, 0.48);
+        ITEM_STRENGTH_MAP.put(Items.CHEST_MINECART, 1.68);
+        ITEM_STRENGTH_MAP.put(Items.FURNACE_MINECART, 1.8);
+        ITEM_STRENGTH_MAP.put(Items.TNT_MINECART, 1.68);
+        ITEM_STRENGTH_MAP.put(Items.HOPPER_MINECART, 1.8);
+
+        // Miscellaneous iron items
+        ITEM_STRENGTH_MAP.put(Items.COMPASS, 0.3);
+        ITEM_STRENGTH_MAP.put(Items.PISTON, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.STICKY_PISTON, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.TRIPWIRE_HOOK, 0.24);
+        ITEM_STRENGTH_MAP.put(Items.SMITHING_TABLE, 0.9);
+        ITEM_STRENGTH_MAP.put(Items.IRON_GOLEM_SPAWN_EGG, 0.42);
+        ITEM_STRENGTH_MAP.put(Items.HEAVY_WEIGHTED_PRESSURE_PLATE, 1.08);
         ITEM_STRENGTH_MAP.put(Items.LANTERN, 0.36);
         ITEM_STRENGTH_MAP.put(Items.SOUL_LANTERN, 0.36);
         ITEM_STRENGTH_MAP.put(Items.SHIELD, 0.3);
         ITEM_STRENGTH_MAP.put(Items.SADDLE, 0.18);
         ITEM_STRENGTH_MAP.put(Items.LODESTONE, 2.4);
+
+        // Chainmail armor
         ITEM_STRENGTH_MAP.put(Items.CHAINMAIL_HELMET, 0.72);
         ITEM_STRENGTH_MAP.put(Items.CHAINMAIL_CHESTPLATE, 1.08);
         ITEM_STRENGTH_MAP.put(Items.CHAINMAIL_LEGGINGS, 0.9);
         ITEM_STRENGTH_MAP.put(Items.CHAINMAIL_BOOTS, 0.72);
+
+        // Redstone components
         ITEM_STRENGTH_MAP.put(Items.REDSTONE, 0.03);
         ITEM_STRENGTH_MAP.put(Items.REDSTONE_BLOCK, 0.06);
         ITEM_STRENGTH_MAP.put(Items.REPEATER, 0.12);
         ITEM_STRENGTH_MAP.put(Items.COMPARATOR, 0.12);
         ITEM_STRENGTH_MAP.put(Items.OBSERVER, 0.6);
+
+        // End-related and other items
         ITEM_STRENGTH_MAP.put(Items.ENDER_PEARL, 1.0);
         ITEM_STRENGTH_MAP.put(Items.ENDER_EYE, 1.0);
         ITEM_STRENGTH_MAP.put(Items.BLAST_FURNACE, 0.9);
