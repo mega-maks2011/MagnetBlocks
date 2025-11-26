@@ -48,7 +48,6 @@ public class MagneticStormManager extends PersistentState {
         stormEndTime = System.currentTimeMillis() + (durationMinutes * 60L * 1000L);
         applyStormEffect(server);
         this.markDirty();
-        System.out.println("Magnetic storm started! Effect: " + currentEffect + ", Duration: " + durationMinutes + "min");
     }
 
     public void startCustomStorm(MinecraftServer server, int durationMinutes, double intensity) {
@@ -61,7 +60,6 @@ public class MagneticStormManager extends PersistentState {
         stormEndTime = System.currentTimeMillis() + (durationMinutes * 60L * 1000L);
         applyStormEffect(server);
         this.markDirty();
-        System.out.println("Custom magnetic storm started! Effect: " + currentEffect + ", Duration: " + durationMinutes + "min, Intensity: " + intensity);
     }
 
     public void endStorm(MinecraftServer server) {
@@ -74,7 +72,6 @@ public class MagneticStormManager extends PersistentState {
         if (!isCustomStorm) scheduleNextStorm();
         isCustomStorm = false;
         this.markDirty();
-        System.out.println("Magnetic storm ended. Magnets restored to original settings.");
     }
 
     private void saveMagnetBackups(MinecraftServer server) {
@@ -87,13 +84,11 @@ public class MagneticStormManager extends PersistentState {
             MagnetBackup backup = new MagnetBackup(magnet.getRadius(), magnet.getForceMultiplier(), magnet.isAttracting());
             magnetBackups.put(magnetId, backup);
         }
-        System.out.println("Saved backups for " + magnetBackups.size() + " magnets");
     }
 
     private void restoreMagnetBackups(MinecraftServer server) {
         PhantomMagnetManager magnetManager = PhantomMagnetManager.get(server);
         var magnets = magnetManager.getMagnets();
-        int restoredCount = 0;
         for (var entry : magnets.entrySet()) {
             int magnetId = entry.getKey();
             PhantomMagnetManager.PhantomMagnet magnet = entry.getValue();
@@ -102,17 +97,14 @@ public class MagneticStormManager extends PersistentState {
                 magnet.setRadius(backup.radius);
                 magnet.setForceMultiplier(backup.forceMultiplier);
                 magnet.setAttracting(backup.attracting);
-                restoredCount++;
             }
         }
         magnetManager.markDirty();
-        System.out.println("Restored " + restoredCount + " magnets to original settings");
     }
 
     private void scheduleNextStorm() {
         int intervalMinutes = MagnetStorms.MIN_STORM_INTERVAL + random.nextInt(MagnetStorms.MAX_STORM_INTERVAL - MagnetStorms.MIN_STORM_INTERVAL + 1);
         nextStormTime = System.currentTimeMillis() + (intervalMinutes * 60L * 1000L);
-        System.out.println("Next magnetic storm in " + intervalMinutes + " minutes");
     }
 
     private StormEffect getRandomStormEffect() {
