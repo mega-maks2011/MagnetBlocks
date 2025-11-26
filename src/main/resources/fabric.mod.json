@@ -4,8 +4,12 @@
   "version": "${version}",
   "name": "Magnet Blocks",
   "description": "Adds magnets like on the MSH4",
-  "authors": ["M998 AKA qweewq2011qwe AKA MegaMaks2011"],
-  "contact": {},
+  "authors": ["qweewq2011qwe"],
+  "contact": {
+    "homepage": "https://modrinth.com/mod/magnet-blocks",
+    "sources": "https://github.com/mega-maks2011/MagnetBlocks",
+    "issues": "https://github.com/mega-maks2011/MagnetBlocks/issues"
+  },
   "license": "MIT",
   "icon": "assets/magnetblocks/icon.png",
   "environment": "*",

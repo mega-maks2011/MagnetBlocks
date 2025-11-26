@@ -19,7 +19,7 @@ public class MagnetBlocksMod implements ModInitializer {
             MagneticStormManager stormManager = MagneticStormManager.get(server);
             stormManager.tick(server);
 
-            MagnetWhitelistManager.get(server); // Initialize whitelist manager
+            MagnetWhitelistManager.get(server);
 
             PhantomMagnetManager phantomManager = PhantomMagnetManager.get(server);
             if (!phantomManager.getMagnets().isEmpty()) {

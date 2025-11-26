@@ -2,20 +2,21 @@ package net.m998.magnetblocks;
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.DoubleArgumentType;
-import com.mojang.brigadier.arguments.BoolArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.arguments.*;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.command.argument.BlockPosArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.server.MinecraftServer;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.List;
 import static net.minecraft.server.command.CommandManager.*;
 
 public class MagnetCommands {
@@ -72,16 +73,16 @@ public class MagnetCommands {
                                 .then(literal("start")
                                         .then(argument("duration", IntegerArgumentType.integer(1, 120))
                                                 .then(argument("intensity", DoubleArgumentType.doubleArg(0.1, 5.0))
-                                                        .executes(context -> adminStormStart(context, IntegerArgumentType.getInteger(context, "duration"), DoubleArgumentType.getDouble(context, "intensity"))))))
-                                .then(literal("stop")
-                                        .executes(MagnetCommands::adminStormStop))
-                                .then(literal("force")
-                                        .executes(MagnetCommands::adminStormForceRandom))
-                                .then(literal("enable")
-                                        .then(argument("value", BoolArgumentType.bool())
-                                                .executes(context -> adminStormEnable(context, BoolArgumentType.getBool(context, "value")))))
-                                .then(literal("status")
-                                        .executes(MagnetCommands::adminStormStatus)))));
+                                                        .executes(context -> adminStormStart(context, IntegerArgumentType.getInteger(context, "duration"), DoubleArgumentType.getDouble(context, "intensity")))))
+                                        .then(literal("stop")
+                                                .executes(MagnetCommands::adminStormStop))
+                                        .then(literal("force")
+                                                .executes(MagnetCommands::adminStormForceRandom))
+                                        .then(literal("enable")
+                                                .then(argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> adminStormEnable(context, BoolArgumentType.getBool(context, "value")))))
+                                        .then(literal("status")
+                                                .executes(MagnetCommands::adminStormStatus))))));
     }
 
     private static int createPhantomMagnet(CommandContext<ServerCommandSource> context, BlockPos pos, double radius, double forceMultiplier, boolean attracting) {
@@ -95,14 +96,28 @@ public class MagnetCommands {
     }
 
     private static int removePhantomMagnet(CommandContext<ServerCommandSource> context, int id) {
+        ServerCommandSource source = context.getSource();
+        World world = source.getWorld();
         PhantomMagnetManager manager = PhantomMagnetManager.get(context.getSource().getServer());
+        var magnet = manager.getMagnets().get(id);
         boolean removed = manager.removeMagnet(id);
+
         if (removed) {
+            if (magnet != null && world instanceof ServerWorld serverWorld) stopBeaconSoundForNearbyPlayers(serverWorld, magnet.getPos());
             context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.remove.success", id), true);
             return 1;
         } else {
             context.getSource().sendError(Text.translatable("command.magnetblocks.remove.error", id));
             return 0;
+        }
+    }
+
+    private static void stopBeaconSoundForNearbyPlayers(ServerWorld world, BlockPos pos) {
+        List<ServerPlayerEntity> players = world.getPlayers(player ->
+                player.squaredDistanceTo(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 256);
+        for (ServerPlayerEntity player : players) {
+            player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.StopSoundS2CPacket(
+                    SoundEvents.BLOCK_BEACON_AMBIENT.getId(), SoundCategory.BLOCKS));
         }
     }
 
@@ -154,9 +169,8 @@ public class MagnetCommands {
     private static int listPhantomMagnets(CommandContext<ServerCommandSource> context) {
         PhantomMagnetManager manager = PhantomMagnetManager.get(context.getSource().getServer());
         var magnets = manager.getMagnets();
-        if (magnets.isEmpty()) {
-            context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.list.empty"), false);
-        } else {
+        if (magnets.isEmpty()) context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.list.empty"), false);
+        else {
             context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.list.header", magnets.size()), false);
             for (var entry : magnets.entrySet()) {
                 PhantomMagnetManager.PhantomMagnet magnet = entry.getValue();
@@ -171,8 +185,13 @@ public class MagnetCommands {
     private static int clearAllPhantomMagnets(CommandContext<ServerCommandSource> context) {
         PhantomMagnetManager manager = PhantomMagnetManager.get(context.getSource().getServer());
         if (manager.isClearConfirmationPending()) {
+            var magnets = manager.getMagnets();
+            World world = context.getSource().getWorld();
+            if (world instanceof ServerWorld serverWorld) {
+                for (var entry : magnets.entrySet()) stopBeaconSoundForNearbyPlayers(serverWorld, entry.getValue().getPos());
+            }
             manager.clearAllMagnets(true);
-            context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.clear.success", manager.getMagnets().size()), true);
+            context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.clear.success", magnets.size()), true);
             return 1;
         } else {
             manager.clearAllMagnets(false);
@@ -217,9 +236,8 @@ public class MagnetCommands {
     private static int whitelistList(CommandContext<ServerCommandSource> context) {
         MagnetWhitelistManager whitelistManager = MagnetWhitelistManager.get(context.getSource().getServer());
         var whitelist = whitelistManager.getWhitelist();
-        if (whitelist.isEmpty()) {
-            context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.whitelist.list.empty"), false);
-        } else {
+        if (whitelist.isEmpty()) context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.whitelist.list.empty"), false);
+        else {
             context.getSource().sendFeedback(() -> Text.translatable("command.magnetblocks.whitelist.list.header", whitelist.size()), false);
             for (var entry : whitelist.entrySet()) {
                 String playerName = Objects.requireNonNull(context.getSource().getServer().getUserCache()).getByUuid(entry.getKey()).map(GameProfile::getName).orElse("Unknown");

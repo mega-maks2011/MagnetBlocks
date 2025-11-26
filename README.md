@@ -16,6 +16,8 @@ Mod Mechanics
     *   **Storm Management:** You can turn off, create, and remove storms.
 *   **The /magnet Command:** Using this command, you can manage "phantom" magnets. Create, delete, modify, etc. You can also manage storms.
 *   **Whitelist:** You can whitelist the player's nickname and he will always be attracted to the magnet.
+*   **Temperature:** depending on the temperature of the magnet (the lower the temperature, the stronger the magnet), the strength of the magnet varies
+*   **The hum:** magnets emit a hum indicating the work and strength of the magnet
 
 # Русский
 
@@ -35,3 +37,5 @@ Magnet Blocks - это мод добавляющий механику магни
     *   **Управление штормами:** вы можете выключать, создовать и убирать штормы
 *   **Команда /magnet:** с помощью этой команды вы можете управлять "фантомными" магнитами. Создавать, удалять, изменять и тд. Также можно управлять штормами
 *   **Белый список:** вы можете вписать в белый список ник игрока и он будет приятгиватся к магниту всегда
+*   **Температура:** в зависимости от температуры магнита (чем меньше - тем сильнее магнит) сила магнита меняется
+*   **Гул:** магниты издают гул обозначающий работу и силу магнита
