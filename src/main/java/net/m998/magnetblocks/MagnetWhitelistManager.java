@@ -13,9 +13,7 @@ public class MagnetWhitelistManager extends PersistentState {
     private static final String DATA_NAME = "magnetblocks_whitelist";
     private final Map<UUID, WhitelistEntry> whitelist = new HashMap<>();
 
-    public MagnetWhitelistManager() {
-        super();
-    }
+    public MagnetWhitelistManager() { super(); }
 
     public static MagnetWhitelistManager get(MinecraftServer server) {
         ServerWorld world = server.getOverworld();
@@ -38,16 +36,12 @@ public class MagnetWhitelistManager extends PersistentState {
         return entry != null ? entry.strength : null;
     }
 
-    public Map<UUID, WhitelistEntry> getWhitelist() {
-        return whitelist;
-    }
+    public Map<UUID, WhitelistEntry> getWhitelist() { return whitelist; }
 
     @Override
     public NbtCompound writeNbt(NbtCompound nbt) {
         NbtList whitelistList = new NbtList();
-        for (WhitelistEntry entry : whitelist.values()) {
-            whitelistList.add(entry.toNbt());
-        }
+        for (WhitelistEntry entry : whitelist.values()) whitelistList.add(entry.toNbt());
         nbt.put("whitelist", whitelistList);
         return nbt;
     }
