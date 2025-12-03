@@ -26,5 +26,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fabric-mod
+          name: magnet-blocks
           path: build/libs/*.jar
