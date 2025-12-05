@@ -1,7 +1,3 @@
-the code is temporarily broken, sorry(
-
-код временно сломан, извините(
-
 # English
 
 Magnet Blocks is a mod that adds magnet mechanics from the "Mineshield 4" Minecraft server (a Russian-language YouTube server).
