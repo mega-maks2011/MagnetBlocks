@@ -7,7 +7,20 @@ import java.util.*;
 
 public class MagneticStormManager extends PersistentState {
     private static final String DATA_NAME = "magnetblocks_storms";
-    private long lastStormEndTime = 0;
+
+    // Конфиги
+    public static boolean ENABLE_MAGNETIC_STORMS = true;
+    public static final int MIN_STORM_INTERVAL = 180;
+    public static final int MAX_STORM_INTERVAL = 360;
+    public static final int MIN_STORM_DURATION = 4;
+    public static final int MAX_STORM_DURATION = 14;
+    public static final boolean STORM_POLARITY_INVERT = true;
+    public static final boolean STORM_RANDOM_POLARITY = true;
+    public static final boolean STORM_POWER_OFF = true;
+    public static final boolean STORM_POWER_BOOST = true;
+    public static final boolean STORM_POWER_REDUCE = true;
+    public static final boolean STORM_RANDOM_RADIUS = true;
+
     private long nextStormTime = 0;
     private boolean stormActive = false;
     private long stormEndTime = 0;
@@ -28,7 +41,7 @@ public class MagneticStormManager extends PersistentState {
     }
 
     public void tick(MinecraftServer server) {
-        if (!MagnetStorms.ENABLE_MAGNETIC_STORMS) return;
+        if (!ENABLE_MAGNETIC_STORMS) return;
         long currentTime = System.currentTimeMillis();
         if (stormActive) {
             if (currentTime >= stormEndTime) endStorm(server);
@@ -44,19 +57,19 @@ public class MagneticStormManager extends PersistentState {
         isCustomStorm = false;
         stormIntensity = 1.0;
         currentEffect = getRandomStormEffect();
-        int durationMinutes = MagnetStorms.MIN_STORM_DURATION + random.nextInt(MagnetStorms.MAX_STORM_DURATION - MagnetStorms.MIN_STORM_DURATION + 1);
+        int durationMinutes = MIN_STORM_DURATION + random.nextInt(MAX_STORM_DURATION - MIN_STORM_DURATION + 1);
         stormEndTime = System.currentTimeMillis() + (durationMinutes * 60L * 1000L);
         applyStormEffect(server);
         this.markDirty();
     }
 
-    public void startCustomStorm(MinecraftServer server, int durationMinutes, double intensity) {
+    public void startCustomStorm(MinecraftServer server, int durationMinutes, double intensity, StormEffect effect) {
         if (stormActive) return;
         saveMagnetBackups(server);
         stormActive = true;
         isCustomStorm = true;
         stormIntensity = Math.min(intensity, 5.0);
-        currentEffect = getRandomStormEffect();
+        currentEffect = effect != null ? effect : getRandomStormEffect();
         stormEndTime = System.currentTimeMillis() + (durationMinutes * 60L * 1000L);
         applyStormEffect(server);
         this.markDirty();
@@ -67,7 +80,6 @@ public class MagneticStormManager extends PersistentState {
         restoreMagnetBackups(server);
         stormActive = false;
         stormIntensity = 1.0;
-        lastStormEndTime = System.currentTimeMillis();
         magnetBackups.clear();
         if (!isCustomStorm) scheduleNextStorm();
         isCustomStorm = false;
@@ -103,18 +115,18 @@ public class MagneticStormManager extends PersistentState {
     }
 
     private void scheduleNextStorm() {
-        int intervalMinutes = MagnetStorms.MIN_STORM_INTERVAL + random.nextInt(MagnetStorms.MAX_STORM_INTERVAL - MagnetStorms.MIN_STORM_INTERVAL + 1);
+        int intervalMinutes = MIN_STORM_INTERVAL + random.nextInt(MAX_STORM_INTERVAL - MIN_STORM_INTERVAL + 1);
         nextStormTime = System.currentTimeMillis() + (intervalMinutes * 60L * 1000L);
     }
 
     private StormEffect getRandomStormEffect() {
         List<StormEffect> availableEffects = new ArrayList<>();
-        if (MagnetStorms.STORM_POLARITY_INVERT) availableEffects.add(StormEffect.POLARITY_INVERT);
-        if (MagnetStorms.STORM_RANDOM_POLARITY) availableEffects.add(StormEffect.RANDOM_POLARITY);
-        if (MagnetStorms.STORM_POWER_OFF) availableEffects.add(StormEffect.POWER_OFF);
-        if (MagnetStorms.STORM_POWER_BOOST) availableEffects.add(StormEffect.POWER_BOOST);
-        if (MagnetStorms.STORM_POWER_REDUCE) availableEffects.add(StormEffect.POWER_REDUCE);
-        if (MagnetStorms.STORM_RANDOM_RADIUS) availableEffects.add(StormEffect.RANDOM_RADIUS);
+        if (STORM_POLARITY_INVERT) availableEffects.add(StormEffect.POLARITY_INVERT);
+        if (STORM_RANDOM_POLARITY) availableEffects.add(StormEffect.RANDOM_POLARITY);
+        if (STORM_POWER_OFF) availableEffects.add(StormEffect.POWER_OFF);
+        if (STORM_POWER_BOOST) availableEffects.add(StormEffect.POWER_BOOST);
+        if (STORM_POWER_REDUCE) availableEffects.add(StormEffect.POWER_REDUCE);
+        if (STORM_RANDOM_RADIUS) availableEffects.add(StormEffect.RANDOM_RADIUS);
         if (availableEffects.isEmpty()) return StormEffect.POLARITY_INVERT;
         return availableEffects.get(random.nextInt(availableEffects.size()));
     }
@@ -163,13 +175,20 @@ public class MagneticStormManager extends PersistentState {
 
     @Override
     public net.minecraft.nbt.NbtCompound writeNbt(net.minecraft.nbt.NbtCompound nbt) {
-        nbt.putLong("lastStormEndTime", lastStormEndTime);
         nbt.putLong("nextStormTime", nextStormTime);
         nbt.putBoolean("stormActive", stormActive);
         nbt.putLong("stormEndTime", stormEndTime);
         nbt.putBoolean("isCustomStorm", isCustomStorm);
         nbt.putDouble("stormIntensity", stormIntensity);
+
+        // Сохраняем относительное время вместо абсолютного
+        long currentTime = System.currentTimeMillis();
+        nbt.putLong("savedAtTime", currentTime);
+        nbt.putLong("relativeStormEndTime", stormActive ? stormEndTime - currentTime : 0);
+        nbt.putLong("relativeNextStormTime", !stormActive ? nextStormTime - currentTime : 0);
+
         if (currentEffect != null) nbt.putString("currentEffect", currentEffect.name());
+
         net.minecraft.nbt.NbtList backupsList = new net.minecraft.nbt.NbtList();
         for (var entry : magnetBackups.entrySet()) {
             net.minecraft.nbt.NbtCompound backupNbt = new net.minecraft.nbt.NbtCompound();
@@ -178,17 +197,58 @@ public class MagneticStormManager extends PersistentState {
             backupsList.add(backupNbt);
         }
         nbt.put("magnetBackups", backupsList);
+
         return nbt;
     }
 
     public static MagneticStormManager fromNbt(net.minecraft.nbt.NbtCompound nbt) {
         MagneticStormManager manager = new MagneticStormManager();
-        manager.lastStormEndTime = nbt.getLong("lastStormEndTime");
-        manager.nextStormTime = nbt.getLong("nextStormTime");
-        manager.stormActive = nbt.getBoolean("stormActive");
-        manager.stormEndTime = nbt.getLong("stormEndTime");
-        manager.isCustomStorm = nbt.getBoolean("isCustomStorm");
-        manager.stormIntensity = nbt.getDouble("stormIntensity");
+        long currentTime = System.currentTimeMillis();
+        long savedAtTime = nbt.contains("savedAtTime") ? nbt.getLong("savedAtTime") : currentTime;
+
+        // Восстанавливаем относительное время
+        if (nbt.contains("relativeStormEndTime") && nbt.contains("relativeNextStormTime")) {
+            long timeDiff = currentTime - savedAtTime;
+
+            manager.stormActive = nbt.getBoolean("stormActive");
+            manager.isCustomStorm = nbt.getBoolean("isCustomStorm");
+            manager.stormIntensity = nbt.getDouble("stormIntensity");
+
+            if (manager.stormActive) {
+                long remainingTime = nbt.getLong("relativeStormEndTime") - timeDiff;
+                if (remainingTime > 0) {
+                    manager.stormEndTime = currentTime + remainingTime;
+                } else {
+                    manager.stormActive = false;
+                    manager.isCustomStorm = false;
+                    manager.stormIntensity = 1.0;
+                    manager.scheduleNextStorm();
+                }
+            } else {
+                long untilNextStorm = nbt.getLong("relativeNextStormTime") - timeDiff;
+                if (untilNextStorm > 0) {
+                    manager.nextStormTime = currentTime + untilNextStorm;
+                } else {
+                    manager.scheduleNextStorm();
+                }
+            }
+        } else {
+            manager.nextStormTime = nbt.getLong("nextStormTime");
+            manager.stormActive = nbt.getBoolean("stormActive");
+            manager.stormEndTime = nbt.getLong("stormEndTime");
+            manager.isCustomStorm = nbt.getBoolean("isCustomStorm");
+            manager.stormIntensity = nbt.getDouble("stormIntensity");
+
+            if (manager.stormActive && currentTime >= manager.stormEndTime) {
+                manager.stormActive = false;
+                manager.isCustomStorm = false;
+                manager.stormIntensity = 1.0;
+                manager.scheduleNextStorm();
+            } else if (!manager.stormActive && currentTime >= manager.nextStormTime) {
+                manager.scheduleNextStorm();
+            }
+        }
+
         if (nbt.contains("currentEffect")) {
             try {
                 manager.currentEffect = StormEffect.valueOf(nbt.getString("currentEffect"));
@@ -196,6 +256,7 @@ public class MagneticStormManager extends PersistentState {
                 manager.currentEffect = null;
             }
         }
+
         if (nbt.contains("magnetBackups")) {
             net.minecraft.nbt.NbtList backupsList = nbt.getList("magnetBackups", 10);
             for (int i = 0; i < backupsList.size(); i++) {
@@ -205,13 +266,11 @@ public class MagneticStormManager extends PersistentState {
                 manager.magnetBackups.put(magnetId, backup);
             }
         }
-        if (manager.stormActive && System.currentTimeMillis() >= manager.stormEndTime) {
-            manager.stormActive = false;
-            manager.isCustomStorm = false;
-            manager.stormIntensity = 1.0;
-            manager.magnetBackups.clear();
+
+        if (manager.nextStormTime == 0) {
+            manager.scheduleNextStorm();
         }
-        if (manager.nextStormTime == 0) manager.scheduleNextStorm();
+
         return manager;
     }
 
@@ -229,6 +288,39 @@ public class MagneticStormManager extends PersistentState {
     }
 
     public enum StormEffect {
-        POLARITY_INVERT, RANDOM_POLARITY, POWER_OFF, POWER_BOOST, POWER_REDUCE, RANDOM_RADIUS
+        POLARITY_INVERT("polarity_invert", ""),
+        RANDOM_POLARITY("random_polarity", ""),
+        POWER_OFF("power_off", ""),
+        POWER_BOOST("power_boost", ""),
+        POWER_REDUCE("power_reduce", ""),
+        RANDOM_RADIUS("random_radius", "");
+
+        private final String id;
+        private final String displayName;
+
+        StormEffect(String id, String displayName) {
+            this.id = id;
+            this.displayName = displayName;
+        }
+
+        public String getId() { return id; }
+        public String getDisplayName() { return displayName; }
+
+        public static StormEffect fromString(String name) {
+            for (StormEffect effect : values()) {
+                if (effect.name().equalsIgnoreCase(name) || effect.id.equalsIgnoreCase(name)) {
+                    return effect;
+                }
+            }
+            return null;
+        }
+
+        public static List<String> getEffectNames() {
+            List<String> names = new ArrayList<>();
+            for (StormEffect effect : values()) {
+                names.add(effect.name().toLowerCase());
+            }
+            return names;
+        }
     }
 }
