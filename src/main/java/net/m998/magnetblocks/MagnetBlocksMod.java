@@ -12,23 +12,14 @@ public class MagnetBlocksMod implements ModInitializer {
         ModBlocks.register();
         ModBlockEntities.register();
         ModItems.register();
-
         ServerTickEvents.END_WORLD_TICK.register(MagnetBlock::tickPropagation);
-
         ServerTickEvents.START_SERVER_TICK.register(server -> {
             MagneticStormManager stormManager = MagneticStormManager.get(server);
             stormManager.tick(server);
-
             MagnetWhitelistManager.get(server);
-
             PhantomMagnetManager phantomManager = PhantomMagnetManager.get(server);
-            if (!phantomManager.getMagnets().isEmpty()) {
-                for (var world : server.getWorlds()) {
-                    MagnetBlockEntity.processAllPhantomMagnets(world);
-                }
-            }
-        });
-
+            if (!phantomManager.getMagnets().isEmpty()) {for (var world : server.getWorlds()) {MagnetBlockEntity.processAllPhantomMagnets(world);}}});
+        ServerTickEvents.START_SERVER_TICK.register(server -> {if (server.getTicks() % 1200 == 0) {MagnetBlockEntity.cleanupAchievementData();}});
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> MagnetCommands.register(dispatcher));
     }
 }
