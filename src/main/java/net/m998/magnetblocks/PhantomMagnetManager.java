@@ -59,16 +59,22 @@ public class PhantomMagnetManager extends PersistentState {
     }
 
     public void clearAllMagnets(boolean confirm) {
-        if (confirm) {
+        if (confirm && clearConfirmation) {
             magnets.clear();
             nextId = 1;
             clearConfirmation = false;
             this.markDirty();
-        } else clearConfirmation = true;
+        } else {
+            clearConfirmation = true;
+        }
     }
 
     public boolean isClearConfirmationPending() {
         return clearConfirmation;
+    }
+
+    public int getMagnetCount() {
+        return magnets.size();
     }
 
     public static double getMaxForceMultiplier() {
