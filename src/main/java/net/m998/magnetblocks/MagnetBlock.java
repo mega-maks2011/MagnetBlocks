@@ -7,8 +7,6 @@ import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.particle.ParticleTypes;
-import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
@@ -26,6 +24,7 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MagnetBlock extends Block implements BlockEntityProvider {
     public static final BooleanProperty POWERED = Properties.POWERED;
@@ -33,14 +32,11 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
     public static final BooleanProperty OVERHEATED = BooleanProperty.of("overheated");
     public static final BooleanProperty SUPERCONDUCTING = BooleanProperty.of("superconducting");
     public static final IntProperty TEMPERATURE = IntProperty.of("temperature", 0, 20);
-
     private static final Direction[] DIRECTIONS = Direction.values();
-    private static final Map<World, Queue<PropagationTask>> propagationQueues = new WeakHashMap<>();
-    private static final ThreadLocal<Set<BlockPos>> updatingBlocks = ThreadLocal.withInitial(HashSet::new);
-
+    private static final Map<World, Queue<PropagationTask>> propagationQueues = new ConcurrentHashMap<>();
+    private static final Map<World, Set<BlockPos>> updatingBlocks = new ConcurrentHashMap<>();
     private static final Map<Block, Integer> TEMPERATURE_EFFECTS = new HashMap<>();
     static {
-        // Heat sources
         TEMPERATURE_EFFECTS.put(Blocks.LAVA, 8);
         TEMPERATURE_EFFECTS.put(Blocks.FIRE, 6);
         TEMPERATURE_EFFECTS.put(Blocks.MAGMA_BLOCK, 5);
@@ -53,7 +49,6 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
         TEMPERATURE_EFFECTS.put(Blocks.SOUL_TORCH, 1);
         TEMPERATURE_EFFECTS.put(Blocks.LANTERN, 1);
         TEMPERATURE_EFFECTS.put(Blocks.SOUL_LANTERN, 1);
-        // Cold sources
         TEMPERATURE_EFFECTS.put(Blocks.BLUE_ICE, -6);
         TEMPERATURE_EFFECTS.put(Blocks.PACKED_ICE, -4);
         TEMPERATURE_EFFECTS.put(Blocks.ICE, -3);
@@ -61,7 +56,6 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
         TEMPERATURE_EFFECTS.put(Blocks.POWDER_SNOW, -2);
         TEMPERATURE_EFFECTS.put(Blocks.SNOW, -1);
     }
-
     private static final Set<Block> MELTABLE_ICE_BLOCKS = Set.of(Blocks.ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE, Blocks.SNOW);
 
     protected MagnetBlock(Settings settings) {
@@ -84,81 +78,59 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
     @Override
     public void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
         if (!state.isOf(newState.getBlock())) {
-            if (!world.isClient && !moved) stopBeaconSoundForNearbyPlayers((ServerWorld) world, pos);
             BlockEntity blockEntity = world.getBlockEntity(pos);
             if (blockEntity instanceof MagnetBlockEntity) world.removeBlockEntity(pos);
         }
         super.onStateReplaced(state, world, pos, newState, moved);
     }
 
-    private void stopBeaconSoundForNearbyPlayers(ServerWorld world, BlockPos pos) {
-        List<ServerPlayerEntity> players = world.getPlayers(player ->
-                player.squaredDistanceTo(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 256);
-        for (ServerPlayerEntity player : players) {
-            player.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.StopSoundS2CPacket(
-                    SoundEvents.BLOCK_BEACON_AMBIENT.getId(), SoundCategory.BLOCKS));
-        }
-    }
-
     @Override
     public void neighborUpdate(BlockState state, World world, BlockPos pos, Block sourceBlock, BlockPos sourcePos, boolean notify) {
         if (world.isClient) return;
-        if (updatingBlocks.get().contains(pos)) return;
-
+        Set<BlockPos> worldUpdating = updatingBlocks.computeIfAbsent(world, k -> ConcurrentHashMap.newKeySet());
+        if (worldUpdating.contains(pos)) return;
         try {
-            updatingBlocks.get().add(pos);
+            worldUpdating.add(pos);
             updateTemperature(world, pos, state);
-
             boolean isRedstoneUpdate = sourceBlock.getDefaultState().emitsRedstonePower() || world.getBlockState(sourcePos).getBlock().getDefaultState().emitsRedstonePower();
             if (!isRedstoneUpdate) {
                 boolean hasLocalPower = world.isReceivingRedstonePower(pos);
                 if (hasLocalPower && !state.get(POWERED)) world.setBlockState(pos, state.with(POWERED, true), 2);
                 return;
             }
-
             boolean powered = world.isReceivingRedstonePower(pos);
             boolean currentPowered = state.get(POWERED);
             if (powered != currentPowered) {
                 world.setBlockState(pos, state.with(POWERED, powered), 2);
                 if (!powered) world.playSound(null, pos, SoundEvents.BLOCK_BEACON_AMBIENT, SoundCategory.BLOCKS, 0.5F, 0.8F);
-                else stopBeaconSoundForNearbyPlayers((ServerWorld) world, pos);
-
                 Set<BlockPos> visited = new HashSet<>();
                 visited.add(pos);
                 for (Direction direction : DIRECTIONS) {
                     BlockPos neighborPos = pos.offset(direction);
                     if (!visited.contains(neighborPos)) {
                         BlockState neighborState = world.getBlockState(neighborPos);
-                        if (neighborState.getBlock() instanceof MagnetBlock) addToPropagationQueue(world, new PowerChangeTask(neighborPos, powered, 0));
+                        if (neighborState.getBlock() instanceof MagnetBlock)
+                            addToPropagationQueue(world, new PowerChangeTask(neighborPos, powered, 0));
                     }
                 }
             }
         } finally {
-            updatingBlocks.get().remove(pos);
+            worldUpdating.remove(pos);
         }
     }
 
     private void updateTemperature(World world, BlockPos pos, BlockState state) {
         if (world.isClient) return;
-
         int totalTemperatureEffect = 0;
         boolean foundExtremeCold = false;
-
         for (Direction direction : Direction.values()) {
             BlockPos neighborPos = pos.offset(direction);
             BlockState neighborState = world.getBlockState(neighborPos);
             Block neighborBlock = neighborState.getBlock();
-
-            if (TEMPERATURE_EFFECTS.containsKey(neighborBlock)) {
-                int effect = TEMPERATURE_EFFECTS.get(neighborBlock);
+            Integer effect = TEMPERATURE_EFFECTS.get(neighborBlock);
+            if (effect != null) {
                 totalTemperatureEffect += effect;
                 if (effect <= -4) foundExtremeCold = true;
-
-                if (world.random.nextInt(8) == 0) {
-                    if (effect > 0) world.addParticle(ParticleTypes.LAVA, pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5, 0, 0, 0);
-                    else if (effect < 0) world.addParticle(ParticleTypes.SNOWFLAKE, pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5, 0, 0, 0);
-                }
-
                 if (MELTABLE_ICE_BLOCKS.contains(neighborBlock)) {
                     int meltChance = getMeltChance(neighborBlock);
                     if (world.random.nextInt(meltChance) == 0) {
@@ -169,24 +141,24 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
                 }
             }
         }
-
         int baseTemperature = 10;
         int newTemp = Math.max(0, Math.min(20, baseTemperature + totalTemperatureEffect));
         int currentTemp = state.get(TEMPERATURE);
-
         if (newTemp != currentTemp) {
             BlockState newState = state.with(TEMPERATURE, newTemp);
             if (newTemp >= 18 && !state.get(OVERHEATED)) {
                 newState = newState.with(OVERHEATED, true);
                 world.playSound(null, pos, SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.BLOCKS, 0.5F, 0.8F);
                 if (state.get(POWERED)) newState = newState.with(POWERED, false);
-            } else if (newTemp < 18 && state.get(OVERHEATED)) newState = newState.with(OVERHEATED, false);
-
+            } else if (newTemp < 18 && state.get(OVERHEATED)) {
+                newState = newState.with(OVERHEATED, false);
+            }
             if (foundExtremeCold && newTemp == 0 && !state.get(SUPERCONDUCTING)) {
                 grantSuperconductivityAchievement(world, pos);
                 newState = newState.with(SUPERCONDUCTING, true);
-            } else if (newTemp != 0 && state.get(SUPERCONDUCTING)) newState = newState.with(SUPERCONDUCTING, false);
-
+            } else if (newTemp != 0 && state.get(SUPERCONDUCTING)) {
+                newState = newState.with(SUPERCONDUCTING, false);
+            }
             world.setBlockState(pos, newState, 3);
         } else {
             boolean shouldBeSuperconducting = foundExtremeCold && currentTemp == 0;
@@ -194,7 +166,9 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
             if (shouldBeSuperconducting && !currentlySuperconducting) {
                 grantSuperconductivityAchievement(world, pos);
                 world.setBlockState(pos, state.with(SUPERCONDUCTING, true), 3);
-            } else if (!shouldBeSuperconducting && currentlySuperconducting) world.setBlockState(pos, state.with(SUPERCONDUCTING, false), 3);
+            } else if (!shouldBeSuperconducting && currentlySuperconducting) {
+                world.setBlockState(pos, state.with(SUPERCONDUCTING, false), 3);
+            }
         }
     }
 
@@ -209,16 +183,16 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
     private void grantSuperconductivityAchievement(World world, BlockPos pos) {
         if (world.isClient) return;
         ServerWorld serverWorld = (ServerWorld) world;
-        List<ServerPlayerEntity> players = serverWorld.getPlayers(player ->
+        List<net.minecraft.server.network.ServerPlayerEntity> players = serverWorld.getPlayers(player ->
                 player.squaredDistanceTo(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 100);
-
-        for (ServerPlayerEntity player : players) {
-            net.minecraft.advancement.Advancement advancement = serverWorld.getServer().getAdvancementLoader()
+        for (var player : players) {
+            var advancement = serverWorld.getServer().getAdvancementLoader()
                     .get(new net.minecraft.util.Identifier("magnetblocks", "superconductivity"));
             if (advancement != null) {
-                net.minecraft.advancement.AdvancementProgress progress = player.getAdvancementTracker().getProgress(advancement);
+                var progress = player.getAdvancementTracker().getProgress(advancement);
                 if (!progress.isDone()) {
-                    for (String criterion : progress.getUnobtainedCriteria()) player.getAdvancementTracker().grantCriterion(advancement, criterion);
+                    for (String criterion : progress.getUnobtainedCriteria())
+                        player.getAdvancementTracker().grantCriterion(advancement, criterion);
                 }
             }
         }
@@ -238,9 +212,11 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
                             BlockState neighborState = world.getBlockState(neighborPos);
                             if (neighborState.getBlock() instanceof MagnetBlock) {
                                 if (task instanceof PowerChangeTask powerTask) {
-                                    if (shouldPropagatePower(world, neighborPos, neighborState, powerTask.powered)) addToPropagationQueue(world, new PowerChangeTask(neighborPos, powerTask.powered, task.distance + 1));
+                                    if (shouldPropagatePower(world, neighborPos, neighborState, powerTask.powered))
+                                        addToPropagationQueue(world, new PowerChangeTask(neighborPos, powerTask.powered, task.distance + 1));
                                 } else if (task instanceof PolarityChangeTask polarityTask) {
-                                    if (shouldPropagatePolarity(neighborState, polarityTask.attracting)) addToPropagationQueue(world, new PolarityChangeTask(neighborPos, polarityTask.attracting, task.distance + 1));
+                                    if (shouldPropagatePolarity(neighborState, polarityTask.attracting))
+                                        addToPropagationQueue(world, new PolarityChangeTask(neighborPos, polarityTask.attracting, task.distance + 1));
                                 }
                             }
                         }
@@ -264,6 +240,7 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
     @Override
     public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
         ItemStack itemStack = player.getStackInHand(hand);
+        // Toggle polarity with iron axe
         if (itemStack.getItem() == Items.IRON_AXE) {
             if (!world.isClient) {
                 boolean currentPolarity = state.get(ATTRACTING);
@@ -271,20 +248,23 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
                 world.setBlockState(pos, state.with(ATTRACTING, newPolarity), 2);
                 world.addBlockBreakParticles(pos, state);
                 addToPropagationQueue(world, new PolarityChangeTask(pos, newPolarity, 0));
-                if (!player.getAbilities().creativeMode) itemStack.damage(10, player, (playerEntity) -> playerEntity.sendToolBreakStatus(hand));
+                if (!player.getAbilities().creativeMode)
+                    itemStack.damage(10, player, (playerEntity) -> playerEntity.sendToolBreakStatus(hand));
                 world.playSound(null, pos, SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, 1.0F, 1.0F);
-                if (world instanceof ServerWorld serverWorld) serverWorld.spawnParticles(ParticleTypes.ELECTRIC_SPARK, pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5, 10, 0.3, 0.3, 0.3, 0.1);
             }
             return ActionResult.SUCCESS;
         }
-
+        // Debug info with stick while sneaking
         if (itemStack.getItem() == Items.STICK && player.isSneaking()) {
             if (!world.isClient) {
                 int temp = state.get(TEMPERATURE);
                 boolean overheated = state.get(OVERHEATED);
                 boolean superconducting = state.get(SUPERCONDUCTING);
                 String tempStatus = getTemperatureString(temp);
-                player.sendMessage(net.minecraft.text.Text.literal("§6Magnet Temperature: " + temp + "/20 (" + tempStatus + ") | Overheated: " + overheated + " | Superconducting: " + superconducting), false);
+                player.sendMessage(net.minecraft.text.Text.literal(
+                        "§6Magnet Temperature: " + temp + "/20 (" + tempStatus +
+                                ") | Overheated: " + overheated +
+                                " | Superconducting: " + superconducting), false);
             }
             return ActionResult.SUCCESS;
         }
@@ -317,24 +297,32 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-        return world.isClient ? null : checkType(type, ModBlockEntities.MAGNET_BLOCK_ENTITY, (world1, pos, state1, blockEntity) -> MagnetBlockEntity.tick(world1, pos, state1));
+        return world.isClient ? null : checkType(type, ModBlockEntities.MAGNET_BLOCK_ENTITY,
+                (world1, pos, state1, blockEntity) -> MagnetBlockEntity.tick(world1, pos, state1));
     }
 
     @Nullable
-    protected static <E extends BlockEntity, A extends BlockEntity> BlockEntityTicker<A> checkType(BlockEntityType<A> givenType, BlockEntityType<E> expectedType, BlockEntityTicker<? super E> ticker) {
+    protected static <E extends BlockEntity, A extends BlockEntity> BlockEntityTicker<A> checkType(
+            BlockEntityType<A> givenType, BlockEntityType<E> expectedType, BlockEntityTicker<? super E> ticker) {
         return expectedType == givenType ? (BlockEntityTicker<A>) ticker : null;
     }
 
     private static abstract class PropagationTask {
         public final BlockPos pos;
         public final int distance;
-        public PropagationTask(BlockPos pos, int distance) { this.pos = pos; this.distance = distance; }
+        public PropagationTask(BlockPos pos, int distance) {
+            this.pos = pos;
+            this.distance = distance;
+        }
         public abstract void execute(World world);
     }
 
     private static class PowerChangeTask extends PropagationTask {
         private final boolean powered;
-        public PowerChangeTask(BlockPos pos, boolean powered, int distance) { super(pos, distance); this.powered = powered; }
+        public PowerChangeTask(BlockPos pos, boolean powered, int distance) {
+            super(pos, distance);
+            this.powered = powered;
+        }
         @Override
         public void execute(World world) {
             BlockState state = world.getBlockState(pos);
@@ -351,7 +339,10 @@ public class MagnetBlock extends Block implements BlockEntityProvider {
 
     private static class PolarityChangeTask extends PropagationTask {
         private final boolean attracting;
-        public PolarityChangeTask(BlockPos pos, boolean attracting, int distance) { super(pos, distance); this.attracting = attracting; }
+        public PolarityChangeTask(BlockPos pos, boolean attracting, int distance) {
+            super(pos, distance);
+            this.attracting = attracting;
+        }
         @Override
         public void execute(World world) {
             BlockState state = world.getBlockState(pos);
