@@ -2,17 +2,18 @@ package net.m998.magnetblocks;
 
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.PersistentState;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public class PhantomMagnetManager extends PersistentState {
     private static final String DATA_NAME = "magnetblocks_phantom_magnets";
     private static final double MAX_FORCE_MULTIPLIER = 10.0;
     private final Map<Integer, PhantomMagnet> magnets = new HashMap<>();
+    private final Map<UUID, WhitelistEntry> whitelist = new HashMap<>();
     private int nextId = 1;
     private boolean clearConfirmation = false;
 
@@ -20,12 +21,12 @@ public class PhantomMagnetManager extends PersistentState {
         super();
     }
 
-    public static PhantomMagnetManager get(MinecraftServer server) {
-        ServerWorld world = server.getOverworld();
+    public static PhantomMagnetManager get(ServerWorld world) {
         return world.getPersistentStateManager().getOrCreate(PhantomMagnetManager::fromNbt, PhantomMagnetManager::new, DATA_NAME);
     }
 
     public int createMagnet(BlockPos pos, double radius, double forceMultiplier, boolean attracting) {
+        clearConfirmation = false;
         int id = findNextAvailableId();
         double clampedForce = Math.min(forceMultiplier, MAX_FORCE_MULTIPLIER);
         magnets.put(id, new PhantomMagnet(pos, radius, clampedForce, attracting));
@@ -43,6 +44,7 @@ public class PhantomMagnetManager extends PersistentState {
     }
 
     public boolean removeMagnet(int id) {
+        clearConfirmation = false;
         boolean removed = magnets.remove(id) != null;
         if (removed) {
             if (id == nextId - 1) {
@@ -81,6 +83,26 @@ public class PhantomMagnetManager extends PersistentState {
         return MAX_FORCE_MULTIPLIER;
     }
 
+    public void addPlayerToWhitelist(UUID playerUUID, double strength) {
+        whitelist.put(playerUUID, new WhitelistEntry(playerUUID, strength));
+        this.markDirty();
+    }
+
+    public boolean removePlayerFromWhitelist(UUID playerUUID) {
+        boolean removed = whitelist.remove(playerUUID) != null;
+        if (removed) this.markDirty();
+        return removed;
+    }
+
+    public Double getPlayerStrength(UUID playerUUID) {
+        WhitelistEntry entry = whitelist.get(playerUUID);
+        return entry != null ? entry.strength : null;
+    }
+
+    public Map<UUID, WhitelistEntry> getWhitelist() {
+        return whitelist;
+    }
+
     @Override
     public NbtCompound writeNbt(NbtCompound nbt) {
         nbt.putInt("nextId", nextId);
@@ -93,6 +115,11 @@ public class PhantomMagnetManager extends PersistentState {
             magnetsList.add(magnetNbt);
         }
         nbt.put("magnets", magnetsList);
+        NbtList whitelistList = new NbtList();
+        for (WhitelistEntry entry : whitelist.values()) {
+            whitelistList.add(entry.toNbt());
+        }
+        nbt.put("whitelist", whitelistList);
         return nbt;
     }
 
@@ -106,6 +133,11 @@ public class PhantomMagnetManager extends PersistentState {
             int id = magnetEntry.getInt("id");
             PhantomMagnet magnet = PhantomMagnet.fromNbt(magnetEntry.getCompound("magnet"));
             manager.magnets.put(id, magnet);
+        }
+        NbtList whitelistList = nbt.getList("whitelist", 10);
+        for (int i = 0; i < whitelistList.size(); i++) {
+            WhitelistEntry entry = WhitelistEntry.fromNbt(whitelistList.getCompound(i));
+            manager.whitelist.put(entry.playerUUID, entry);
         }
         return manager;
     }
@@ -149,6 +181,29 @@ public class PhantomMagnetManager extends PersistentState {
             double forceMultiplier = Math.min(nbt.getDouble("forceMultiplier"), MAX_FORCE_MULTIPLIER);
             boolean attracting = nbt.getBoolean("attracting");
             return new PhantomMagnet(pos, radius, forceMultiplier, attracting);
+        }
+    }
+
+    public static class WhitelistEntry {
+        private final UUID playerUUID;
+        private final double strength;
+
+        public WhitelistEntry(UUID playerUUID, double strength) {
+            this.playerUUID = playerUUID;
+            this.strength = Math.max(0.001, Math.min(strength, 10.0));
+        }
+
+        public double getStrength() { return strength; }
+
+        public NbtCompound toNbt() {
+            NbtCompound nbt = new NbtCompound();
+            nbt.putUuid("playerUUID", playerUUID);
+            nbt.putDouble("strength", strength);
+            return nbt;
+        }
+
+        public static WhitelistEntry fromNbt(NbtCompound nbt) {
+            return new WhitelistEntry(nbt.getUuid("playerUUID"), nbt.getDouble("strength"));
         }
     }
 }
